@@ -23,13 +23,33 @@ services:
       - maqamtab
     environment:
       - PYTHONUNBUFFERED=1
+      # Whisper model: tiny (fast) | base | small | medium | large (accurate)
+      - WHISPER_MODEL=base
+    volumes:
+      # Cache Whisper model weights between rebuilds
+      - whisper_models:/root/.cache/whisper
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
+      start_period: 90s  # allow model download time
       retries: 3
+
+  # Uncomment for NVIDIA GPU acceleration:
+  # backend-gpu:
+  #   extends: backend
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
 
 networks:
   maqamtab:
     driver: bridge
+
+volumes:
+  whisper_models:

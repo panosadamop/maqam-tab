@@ -1,111 +1,174 @@
 import { useState } from "react";
-import { INSTRUMENTS } from "../utils/instruments";
-
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+import {
+  Box, Typography, Select, MenuItem, FormControl, InputLabel,
+  IconButton, TextField, Tooltip, Chip, Collapse,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import EditIcon from "@mui/icons-material/Edit";
+import { INSTRUMENTS, midiToName } from "../utils/instruments";
 
 export default function TuningPanel({ instrument, tuning, onTuningChange }) {
-  const [customMode, setCustomMode] = useState(false);
-  const [customStrings, setCustomStrings] = useState(tuning.strings.map(s => s.midi));
+  const [expanded, setExpanded] = useState(true);
+  const [editingString, setEditingString] = useState(null);
+
   const inst = INSTRUMENTS[instrument];
+  const tunings = inst.tunings;
 
   const handleTuningSelect = (id) => {
-    const found = inst.tunings.find(t => t.id === id);
-    if (found) {
-      onTuningChange(found);
-      setCustomStrings(found.strings.map(s => s.midi));
-      setCustomMode(false);
-    }
+    const t = tunings.find((t) => t.id === id);
+    if (t) onTuningChange(t);
   };
 
-  const handleCustomString = (idx, midi) => {
-    const updated = [...customStrings];
-    updated[idx] = midi;
-    setCustomStrings(updated);
-    const customTuning = {
+  const handleStringMidiChange = (idx, midi) => {
+    const updated = {
       ...tuning,
-      id: "custom",
-      name: "Προσαρμοσμένο",
-      strings: updated.map((m, i) => ({
-        midi: m,
-        name: NOTE_NAMES[m % 12] + Math.floor(m / 12 - 1),
-        course: i + 1,
-      })),
+      strings: tuning.strings.map((s, i) =>
+        i === idx ? { ...s, midi: parseInt(midi) || s.midi, name: midiToName(parseInt(midi) || s.midi) } : s
+      ),
     };
-    onTuningChange(customTuning);
+    onTuningChange(updated);
   };
 
   return (
-    <div className="tuning-panel">
-      <div className="section-title">Κούρδισμα</div>
-      <select
-        value={tuning.id}
-        onChange={e => handleTuningSelect(e.target.value)}
-        className="select-input"
-        style={{ width: "100%", marginBottom: 8 }}
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          mb: 1,
+        }}
+        onClick={() => setExpanded(!expanded)}
       >
-        {inst.tunings.map(t => (
-          <option key={t.id} value={t.id}>{t.name}</option>
-        ))}
-      </select>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "primary.main",
+            textTransform: "uppercase",
+            letterSpacing: 1.5,
+            fontWeight: 600,
+          }}
+        >
+          Κούρδισμα
+        </Typography>
+        {expanded ? (
+          <ExpandLessIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+        ) : (
+          <ExpandMoreIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+        )}
+      </Box>
 
-      {tuning.arabic && (
-        <div style={{ fontFamily: "var(--font-arabic)", fontSize: 14, color: "var(--gold)", direction: "rtl", marginBottom: 8, textAlign: "right" }}>
-          {tuning.arabic}
-        </div>
-      )}
+      <Collapse in={expanded}>
+        <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+          <Select
+            value={tuning.id}
+            onChange={(e) => handleTuningSelect(e.target.value)}
+            sx={{
+              fontSize: "0.7rem",
+              bgcolor: "background.default",
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+            }}
+          >
+            {tunings.map((t) => (
+              <MenuItem key={t.id} value={t.id} sx={{ fontSize: "0.7rem" }}>
+                {t.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-      {/* String display */}
-      <div className="strings-display">
-        {tuning.strings.map((s, i) => (
-          <div key={i} className="string-row">
-            <span className="string-num">{i + 1}</span>
-            {customMode ? (
-              <input
-                type="number" min="30" max="90"
-                value={customStrings[i]}
-                onChange={e => handleCustomString(i, +e.target.value)}
-                className="num-input" style={{ width: 50, fontSize: 11 }}
-              />
-            ) : (
-              <span className="string-name">{s.name}</span>
-            )}
-            <div className="string-line" style={{ opacity: 0.5 + (i * 0.05) }} />
-          </div>
-        ))}
-      </div>
+        {tuning.arabic && (
+          <Typography
+            sx={{
+              fontFamily: "'Amiri', serif",
+              direction: "rtl",
+              fontSize: "0.85rem",
+              color: "text.secondary",
+              textAlign: "right",
+              mb: 1,
+            }}
+          >
+            {tuning.arabic}
+          </Typography>
+        )}
 
-      <button
-        className="tb-btn"
-        style={{ width: "100%", marginTop: 8, fontSize: 10 }}
-        onClick={() => setCustomMode(!customMode)}
-      >
-        {customMode ? "✓ Αποθήκευση" : "✏ Προσαρμοσμένο"}
-      </button>
-
-      <style>{`
-        .tuning-panel { }
-        .strings-display { display: flex; flex-direction: column; gap: 4px; }
-        .string-row {
-          display: flex; align-items: center; gap: 6px;
-          padding: 3px 0;
-        }
-        .string-num {
-          font-size: 9px; color: var(--text2);
-          background: var(--bg3); width: 16px; height: 16px;
-          border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-        .string-name { font-size: 11px; color: var(--text); min-width: 36px; }
-        .string-line {
-          flex: 1; height: 1px; background: var(--gold);
-          border-radius: 1px;
-        }
-        .num-input {
-          background: var(--bg3); border: 1px solid var(--border);
-          color: var(--text); padding: 2px 4px; border-radius: 3px;
-          font-family: var(--font-mono);
-        }
-      `}</style>
-    </div>
+        {/* String list */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          {tuning.strings.map((s, i) => (
+            <Box
+              key={i}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                p: 0.5,
+                borderRadius: 0.5,
+                bgcolor: "background.default",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{ color: "text.secondary", minWidth: 18 }}
+              >
+                {i + 1}
+              </Typography>
+              {editingString === i && tuning.editable ? (
+                <TextField
+                  type="number"
+                  size="small"
+                  defaultValue={s.midi}
+                  onBlur={(e) => {
+                    handleStringMidiChange(i, e.target.value);
+                    setEditingString(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleStringMidiChange(i, e.target.value);
+                      setEditingString(null);
+                    }
+                  }}
+                  autoFocus
+                  inputProps={{ min: 24, max: 96 }}
+                  sx={{
+                    flex: 1,
+                    "& .MuiInputBase-input": {
+                      p: 0.25,
+                      fontSize: "0.65rem",
+                      fontFamily: "monospace",
+                    },
+                  }}
+                />
+              ) : (
+                <Typography
+                  variant="caption"
+                  sx={{ color: "primary.light", flex: 1, fontFamily: "monospace", fontWeight: 600 }}
+                >
+                  {s.name}
+                </Typography>
+              )}
+              <Typography
+                variant="caption"
+                sx={{ color: "text.secondary", fontSize: "0.6rem" }}
+              >
+                MIDI {s.midi}
+              </Typography>
+              {tuning.editable && (
+                <IconButton
+                  size="small"
+                  sx={{ p: 0.25 }}
+                  onClick={() => setEditingString(editingString === i ? null : i)}
+                >
+                  <EditIcon sx={{ fontSize: 12, color: "text.secondary" }} />
+                </IconButton>
+              )}
+            </Box>
+          ))}
+        </Box>
+      </Collapse>
+    </Box>
   );
 }

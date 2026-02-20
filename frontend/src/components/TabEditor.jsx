@@ -1,4 +1,14 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
+import {
+  Box, Button, ButtonGroup, Typography, Paper, Toolbar,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Select, MenuItem, FormControl, InputLabel, Slider,
+  Chip, IconButton,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import { INSTRUMENTS, getAllPositions, midiToName } from "../utils/instruments";
 
 const ORNAMENTS = {
@@ -18,7 +28,6 @@ const PIXELS_PER_BEAT = 80;
 
 export default function TabEditor({ notes, tuning, instrument, selectedNote, onSelectNote, onNoteUpdate, onNoteDelete, onNoteAdd, tempo }) {
   const [editingNote, setEditingNote] = useState(null);
-  const [editPanel, setEditPanel] = useState(false);
   const svgRef = useRef(null);
   const inst = INSTRUMENTS[instrument];
   const stringCount = tuning.strings.length;
@@ -39,10 +48,10 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
   const timeToX = (time) => 60 + (time * tempo / 60) * PIXELS_PER_BEAT;
   const stringToY = (stringIdx) => HEADER_HEIGHT + stringIdx * STRING_SPACING + STRING_SPACING / 2;
 
-  const handleNoteClick = (note, idx) => {
+  const handleNoteClick = (note, idx, e) => {
+    e.stopPropagation();
     if (selectedNote === idx) {
       setEditingNote({ ...note, idx });
-      setEditPanel(true);
     } else {
       onSelectNote(idx);
     }
@@ -60,16 +69,9 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
     )) {
       const openMidi = tuning.strings[stringIdx].midi;
       onNoteAdd({
-        id: `note_${Date.now()}`,
-        time,
-        duration: 60 / tempo / 2,
-        midi: openMidi,
-        midiRounded: openMidi,
-        microtonalOffset: 0,
-        string: stringIdx,
-        fret: 0,
-        velocity: 80,
-        ornament: null,
+        id: `note_${Date.now()}`, time, duration: 60 / tempo / 2,
+        midi: openMidi, midiRounded: openMidi, microtonalOffset: 0,
+        string: stringIdx, fret: 0, velocity: 80, ornament: null,
       });
     }
   };
@@ -82,40 +84,27 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
     const ornament = note.ornament ? ORNAMENTS[note.ornament] : null;
 
     return (
-      <g key={note.id || idx} style={{ cursor: "pointer" }}
-        onClick={(e) => { e.stopPropagation(); handleNoteClick(note, idx); }}>
-        {/* Duration line */}
-        <rect
-          x={x} y={y - 2} width={w} height={4}
-          rx={2} fill={isSelected ? "var(--gold2)" : "rgba(201,169,110,0.3)"}
-        />
-        {/* Fret circle */}
-        <rect
-          x={x} y={y - 10} width={Math.max(20, w > 24 ? 24 : w)} height={20}
+      <g style={{ cursor: "pointer" }} onClick={(e) => handleNoteClick(note, idx, e)}>
+        <rect x={x} y={y - 2} width={w} height={4} rx={2}
+          fill={isSelected ? "#e8c87a" : "rgba(201,169,110,0.3)"} />
+        <rect x={x} y={y - 10} width={Math.max(20, Math.min(w, 24))} height={20}
           rx={4}
-          fill={isSelected ? "var(--gold)" : "var(--bg4)"}
-          stroke={isSelected ? "var(--gold2)" : "var(--border)"}
+          fill={isSelected ? "#c9a96e" : "#261f14"}
+          stroke={isSelected ? "#e8c87a" : "rgba(201,169,110,0.15)"}
           strokeWidth={isSelected ? 2 : 1}
         />
-        <text
-          x={x + 12} y={y + 4}
-          textAnchor="middle"
-          fill={isSelected ? "var(--bg)" : "var(--gold2)"}
-          fontSize="10" fontFamily="var(--font-mono)" fontWeight="600"
-        >
+        <text x={x + 12} y={y + 4} textAnchor="middle"
+          fill={isSelected ? "#0d0a05" : "#e8c87a"}
+          fontSize="10" fontFamily="monospace" fontWeight="600">
           {note.fret}
         </text>
-        {/* Ornament */}
         {ornament?.symbol && (
-          <text x={x + 14} y={y - 14}
-            fontSize="9" fill="var(--amber)" textAnchor="middle">
+          <text x={x + 14} y={y - 14} fontSize="9" fill="#d4882a" textAnchor="middle">
             {ornament.symbol}
           </text>
         )}
-        {/* Microtonal offset indicator */}
-        {Math.abs(note.microtonalOffset) > 10 && (
-          <text x={x + 14} y={y + 20}
-            fontSize="8" fill="var(--accent2)" textAnchor="middle">
+        {Math.abs(note.microtonalOffset || 0) > 10 && (
+          <text x={x + 14} y={y + 20} fontSize="8" fill="#a04830" textAnchor="middle">
             {note.microtonalOffset > 0 ? `+${note.microtonalOffset.toFixed(0)}¢` : `${note.microtonalOffset.toFixed(0)}¢`}
           </text>
         )}
@@ -124,38 +113,71 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
   };
 
   return (
-    <div className="tab-editor">
-      <div className="tab-toolbar">
-        <button className="tb-btn" onClick={() => onNoteAdd({
-          id: `note_${Date.now()}`, time: 0, duration: 0.5,
-          midi: tuning.strings[0].midi, midiRounded: tuning.strings[0].midi,
-          microtonalOffset: 0, string: 0, fret: 0, velocity: 80, ornament: null
-        })}>+ Νότα</button>
+    <Box sx={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+      {/* Toolbar */}
+      <Paper
+        square
+        variant="outlined"
+        sx={{
+          display: "flex", alignItems: "center", gap: 1,
+          px: 2, py: 0.75,
+          bgcolor: "background.paper",
+          borderLeft: 0, borderRight: 0, borderTop: 0,
+          flexShrink: 0,
+        }}
+      >
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => onNoteAdd({
+            id: `note_${Date.now()}`, time: 0, duration: 0.5,
+            midi: tuning.strings[0].midi, midiRounded: tuning.strings[0].midi,
+            microtonalOffset: 0, string: 0, fret: 0, velocity: 80, ornament: null,
+          })}
+          sx={{ fontSize: "0.7rem", borderColor: "divider", color: "text.primary" }}
+        >
+          Νότα
+        </Button>
+
         {selectedNote !== null && (
           <>
-            <button className="tb-btn edit" onClick={() => {
-              setEditingNote({ ...notes[selectedNote], idx: selectedNote });
-              setEditPanel(true);
-            }}>✏️ Επεξεργασία</button>
-            <button className="tb-btn danger" onClick={() => {
-              onNoteDelete(selectedNote);
-              onSelectNote(null);
-            }}>🗑 Διαγραφή</button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => setEditingNote({ ...notes[selectedNote], idx: selectedNote })}
+              sx={{ fontSize: "0.7rem", borderColor: "primary.dark", color: "primary.main" }}
+            >
+              Επεξεργασία
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DeleteIcon />}
+              onClick={() => { onNoteDelete(selectedNote); onSelectNote(null); }}
+              sx={{ fontSize: "0.7rem", borderColor: "error.dark", color: "error.main" }}
+            >
+              Διαγραφή
+            </Button>
           </>
         )}
-        <span className="tb-info">{notes.length} νότες | {measures} μέτρα</span>
-      </div>
 
-      <div className="tab-scroll">
+        <Typography variant="caption" sx={{ color: "text.secondary", ml: "auto" }}>
+          {notes.length} νότες · {measures} μέτρα
+        </Typography>
+      </Paper>
+
+      {/* TAB canvas */}
+      <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
         <svg
           ref={svgRef}
           width={totalWidth}
           height={TAB_HEIGHT}
-          className="tab-svg"
+          style={{ cursor: "crosshair" }}
           onClick={handleSvgClick}
         >
-          {/* Background */}
-          <rect width={totalWidth} height={TAB_HEIGHT} fill="var(--bg)" />
+          <rect width={totalWidth} height={TAB_HEIGHT} fill="#0d0a05" />
 
           {/* Measure lines */}
           {Array.from({ length: measures + 1 }).map((_, m) => {
@@ -164,8 +186,7 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
               <g key={m}>
                 <line x1={x} y1={HEADER_HEIGHT - 5} x2={x} y2={TAB_HEIGHT - 15}
                   stroke="rgba(201,169,110,0.2)" strokeWidth={m === 0 ? 2 : 1} />
-                <text x={x + 4} y={HEADER_HEIGHT - 12}
-                  fill="var(--text2)" fontSize="9" fontFamily="var(--font-mono)">
+                <text x={x + 4} y={HEADER_HEIGHT - 12} fill="#9a8870" fontSize="9" fontFamily="monospace">
                   {m + 1}
                 </text>
               </g>
@@ -173,13 +194,12 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
           })}
 
           {/* Beat subdivisions */}
-          {Array.from({ length: measures * BEATS_PER_MEASURE }).map((_, b) => {
-            const x = 60 + b * PIXELS_PER_BEAT;
-            return (
-              <line key={b} x1={x} y1={HEADER_HEIGHT} x2={x} y2={TAB_HEIGHT - 15}
-                stroke="rgba(201,169,110,0.06)" strokeWidth={1} strokeDasharray="2 4" />
-            );
-          })}
+          {Array.from({ length: measures * BEATS_PER_MEASURE }).map((_, b) => (
+            <line key={b}
+              x1={60 + b * PIXELS_PER_BEAT} y1={HEADER_HEIGHT}
+              x2={60 + b * PIXELS_PER_BEAT} y2={TAB_HEIGHT - 15}
+              stroke="rgba(201,169,110,0.06)" strokeWidth={1} strokeDasharray="2 4" />
+          ))}
 
           {/* String lines */}
           {tuning.strings.map((s, sIdx) => {
@@ -188,72 +208,44 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
               <g key={sIdx}>
                 <line x1={40} y1={y} x2={totalWidth - 10} y2={y}
                   stroke="rgba(201,169,110,0.2)" strokeWidth={1} />
-                <text x={36} y={y + 4}
-                  textAnchor="end" fill="var(--text2)"
-                  fontSize="10" fontFamily="var(--font-mono)">
+                <text x={36} y={y + 4} textAnchor="end" fill="#9a8870" fontSize="10" fontFamily="monospace">
                   {s.name}
                 </text>
               </g>
             );
           })}
 
-          {/* "TAB" label */}
+          {/* TAB label */}
           <text x={20} y={HEADER_HEIGHT + (stringCount * STRING_SPACING) / 2}
-            textAnchor="middle" fill="var(--gold)" fontSize="11"
-            fontFamily="var(--font-mono)" fontWeight="600"
+            textAnchor="middle" fill="#c9a96e" fontSize="11" fontFamily="monospace" fontWeight="600"
             transform={`rotate(-90, 20, ${HEADER_HEIGHT + (stringCount * STRING_SPACING) / 2})`}>
             TAB
           </text>
 
-          {/* Notes */}
           {notes.map((note, idx) => (
             <NotePill key={note.id || idx} note={note} idx={idx} />
           ))}
         </svg>
-      </div>
+      </Box>
 
-      {/* Edit panel */}
-      {editPanel && editingNote && (
-        <NoteEditPanel
+      {/* Note Edit Dialog */}
+      {editingNote && (
+        <NoteEditDialog
           note={editingNote}
           tuning={tuning}
           instrument={instrument}
           onUpdate={(updated) => {
             onNoteUpdate(editingNote.idx, updated);
-            setEditingNote({ ...editingNote, ...updated });
+            setEditingNote(null);
           }}
-          onClose={() => setEditPanel(false)}
+          onClose={() => setEditingNote(null)}
         />
       )}
-
-      <style>{`
-        .tab-editor {
-          display: flex; flex-direction: column; flex: 1; overflow: hidden;
-        }
-        .tab-toolbar {
-          display: flex; align-items: center; gap: 8px;
-          padding: 8px 16px;
-          background: var(--bg2); border-bottom: 1px solid var(--border);
-          flex-shrink: 0;
-        }
-        .tb-btn {
-          background: var(--bg3); border: 1px solid var(--border);
-          color: var(--text); padding: 5px 12px; border-radius: var(--radius);
-          cursor: pointer; font-family: var(--font-mono); font-size: 11px;
-          transition: all .15s;
-        }
-        .tb-btn:hover { background: var(--bg4); color: var(--gold); }
-        .tb-btn.edit { color: var(--gold); border-color: rgba(201,169,110,0.3); }
-        .tb-btn.danger { color: var(--accent2); border-color: rgba(160,72,48,0.3); }
-        .tb-info { font-size: 10px; color: var(--text2); margin-left: auto; }
-        .tab-scroll { flex: 1; overflow: auto; padding: 16px; }
-        .tab-svg { cursor: crosshair; }
-      `}</style>
-    </div>
+    </Box>
   );
 }
 
-function NoteEditPanel({ note, tuning, instrument, onUpdate, onClose }) {
+function NoteEditDialog({ note, tuning, instrument, onUpdate, onClose }) {
   const [fret, setFret] = useState(note.fret);
   const [string, setString] = useState(note.string);
   const [ornament, setOrnament] = useState(note.ornament || "none");
@@ -268,113 +260,98 @@ function NoteEditPanel({ note, tuning, instrument, onUpdate, onClose }) {
   };
 
   return (
-    <div className="note-edit-panel">
-      <div className="nep-header">
-        <span>Επεξεργασία Νότας — {midiToName(note.midiRounded)}</span>
-        <button onClick={onClose}>✕</button>
-      </div>
-      <div className="nep-body">
-        <div className="nep-row">
-          <label>Χορδή</label>
-          <select value={string} onChange={e => setString(+e.target.value)} className="select-input">
+    <Dialog open onClose={onClose} maxWidth="xs" fullWidth
+      PaperProps={{ sx: { bgcolor: "background.paper", backgroundImage: "none" } }}>
+      <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}>
+        <Typography sx={{ color: "primary.light", fontSize: "0.85rem", fontFamily: "monospace" }}>
+          Επεξεργασία Νότας — {midiToName(note.midiRounded)}
+        </Typography>
+        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+        <FormControl size="small" fullWidth>
+          <InputLabel sx={{ fontSize: "0.75rem" }}>Χορδή</InputLabel>
+          <Select value={string} label="Χορδή" onChange={e => setString(+e.target.value)} sx={{ fontSize: "0.75rem" }}>
             {tuning.strings.map((s, i) => (
-              <option key={i} value={i}>{i + 1}: {s.name}</option>
+              <MenuItem key={i} value={i} sx={{ fontSize: "0.75rem" }}>{i + 1}: {s.name}</MenuItem>
             ))}
-          </select>
-        </div>
-        <div className="nep-row">
-          <label>Τάστο</label>
-          <input
-            type="number" min="0" max="24" value={fret}
-            onChange={e => setFret(+e.target.value)}
-            className="num-input"
-          />
-        </div>
+          </Select>
+        </FormControl>
+
+        <TextField
+          label="Τάστο" type="number" size="small"
+          value={fret} onChange={e => setFret(+e.target.value)}
+          inputProps={{ min: 0, max: 24 }}
+          InputLabelProps={{ sx: { fontSize: "0.75rem" } }}
+          sx={{ "& .MuiInputBase-input": { fontSize: "0.75rem" } }}
+        />
+
         {allPositions.length > 1 && (
-          <div className="nep-row">
-            <label>Θέσεις</label>
-            <div className="positions-grid">
+          <Box>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.5 }}>
+              Εναλλακτικές θέσεις
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
               {allPositions.map((pos, i) => (
-                <button
+                <Chip
                   key={i}
-                  className={`pos-btn ${pos.string === string && pos.fret === fret ? "active" : ""}`}
+                  label={`${pos.fret}/${pos.string + 1}`}
+                  size="small"
                   onClick={() => { setString(pos.string); setFret(pos.fret); }}
-                >
-                  {pos.fret}/{pos.string + 1}
-                </button>
+                  variant={pos.string === string && pos.fret === fret ? "filled" : "outlined"}
+                  sx={{
+                    fontSize: "0.65rem", fontFamily: "monospace",
+                    bgcolor: pos.string === string && pos.fret === fret ? "primary.main" : "transparent",
+                    borderColor: "primary.dark",
+                    color: pos.string === string && pos.fret === fret ? "background.default" : "primary.main",
+                    cursor: "pointer",
+                  }}
+                />
               ))}
-            </div>
-          </div>
+            </Box>
+          </Box>
         )}
-        <div className="nep-row">
-          <label>Ornament</label>
-          <select value={ornament} onChange={e => setOrnament(e.target.value)} className="select-input">
+
+        <FormControl size="small" fullWidth>
+          <InputLabel sx={{ fontSize: "0.75rem" }}>Ornament</InputLabel>
+          <Select value={ornament} label="Ornament" onChange={e => setOrnament(e.target.value)} sx={{ fontSize: "0.75rem" }}>
             {Object.entries(ORNAMENTS).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
+              <MenuItem key={k} value={k} sx={{ fontSize: "0.75rem" }}>{v.label}</MenuItem>
             ))}
-          </select>
-        </div>
-        <div className="nep-row">
-          <label>Μικροτονικό (¢)</label>
-          <input
-            type="range" min="-50" max="50" value={microtonalOffset}
-            onChange={e => setMicrotonalOffset(+e.target.value)}
-            className="slider"
+          </Select>
+        </FormControl>
+
+        <Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>Μικροτονικό offset</Typography>
+            <Typography variant="caption" sx={{ color: "primary.main", fontFamily: "monospace" }}>
+              {microtonalOffset > 0 ? "+" : ""}{microtonalOffset}¢
+            </Typography>
+          </Box>
+          <Slider
+            value={microtonalOffset} min={-50} max={50}
+            onChange={(_, v) => setMicrotonalOffset(v)}
+            size="small" sx={{ color: "primary.main" }}
           />
-          <span style={{ color: "var(--gold)", fontSize: 11, minWidth: 40 }}>
-            {microtonalOffset > 0 ? "+" : ""}{microtonalOffset}¢
-          </span>
-        </div>
-        <div className="nep-row">
-          <label>Διάρκεια (s)</label>
-          <input
-            type="number" min="0.05" max="4" step="0.05" value={duration}
-            onChange={e => setDuration(+e.target.value)}
-            className="num-input"
-          />
-        </div>
-        <button className="apply-btn" onClick={apply}>✓ Εφαρμογή</button>
-      </div>
-      <style>{`
-        .note-edit-panel {
-          position: fixed; right: 24px; bottom: 24px;
-          background: var(--bg2); border: 1px solid rgba(201,169,110,0.4);
-          border-radius: 10px; min-width: 260px; z-index: 200;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        }
-        .nep-header {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 12px 16px; border-bottom: 1px solid var(--border);
-          font-size: 12px; font-weight: 600; color: var(--gold2);
-        }
-        .nep-header button {
-          background: none; border: none; color: var(--text2);
-          cursor: pointer; font-size: 14px;
-        }
-        .nep-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .nep-row { display: flex; align-items: center; gap: 10px; }
-        .nep-row label { font-size: 10px; color: var(--text2); min-width: 90px; }
-        .num-input {
-          background: var(--bg3); border: 1px solid var(--border);
-          color: var(--text); padding: 4px 8px; border-radius: 4px;
-          font-family: var(--font-mono); font-size: 12px; width: 70px;
-        }
-        .positions-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-        .pos-btn {
-          background: var(--bg3); border: 1px solid var(--border);
-          color: var(--text2); padding: 3px 8px; border-radius: 4px;
-          cursor: pointer; font-size: 10px; font-family: var(--font-mono);
-        }
-        .pos-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold); }
-        .apply-btn {
-          background: var(--green); border: none;
-          color: white; padding: 8px; border-radius: var(--radius);
-          cursor: pointer; font-family: var(--font-mono); font-size: 12px;
-          font-weight: 600; width: 100%;
-          transition: opacity .2s;
-        }
-        .apply-btn:hover { opacity: 0.85; }
-      `}</style>
-    </div>
+        </Box>
+
+        <TextField
+          label="Διάρκεια (s)" type="number" size="small"
+          value={duration} onChange={e => setDuration(+e.target.value)}
+          inputProps={{ min: 0.05, max: 4, step: 0.05 }}
+          InputLabelProps={{ sx: { fontSize: "0.75rem" } }}
+          sx={{ "& .MuiInputBase-input": { fontSize: "0.75rem" } }}
+        />
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} size="small" sx={{ color: "text.secondary" }}>Ακύρωση</Button>
+        <Button onClick={apply} variant="contained" size="small"
+          sx={{ bgcolor: "success.main", "&:hover": { bgcolor: "success.dark" } }}>
+          ✓ Εφαρμογή
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

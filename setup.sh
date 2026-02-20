@@ -21,6 +21,9 @@ echo "  ╚═╝     ╚═╝╚═╝  ╚═╝ ╚══▀▀═╝ ╚═
 echo -e "${CYAN}     Ούτι & Σάζι Microtonal Tablature Editor${NC}"
 echo ""
 
+echo "🎵 MaqamTAB v2 Setup"
+echo "===================="
+
 PROJECT_DIR="maqam-tab"
 
 echo -e "${GREEN}📁 Δημιουργία project δομής...${NC}"

@@ -1,12 +1,21 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
+import {
+  AppBar, Toolbar, Box, Tabs, Tab, Drawer, Typography,
+  Select, MenuItem, FormControl, Slider, Chip, Stack,
+  Divider, IconButton, Tooltip,
+} from "@mui/material";
+import MusicNoteIcon from "@mui/icons-material/MusicNote";
 import AudioEngine from "./components/AudioEngine";
 import TabEditor from "./components/TabEditor";
 import MaqamPanel from "./components/MaqamPanel";
 import TuningPanel from "./components/TuningPanel";
 import ExportPanel from "./components/ExportPanel";
 import WaveformViewer from "./components/WaveformViewer";
+import AITranscribePanel from "./components/AITranscribePanel";
 import { INSTRUMENTS } from "./utils/instruments";
 import { MAQAMAT } from "./utils/maqamat";
+
+const SIDEBAR_WIDTH = 230;
 
 export default function App() {
   const [instrument, setInstrument] = useState("oud");
@@ -16,12 +25,15 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [audioBuffer, setAudioBuffer] = useState(null);
-  const [activeTab, setActiveTab] = useState("record");
+  const [activeTab, setActiveTab] = useState(0);
   const [tempo, setTempo] = useState(80);
   const [quantization, setQuantization] = useState("1/8");
   const [selectedNote, setSelectedNote] = useState(null);
   const [seyirPath, setSeyirPath] = useState([]);
   const audioEngineRef = useRef(null);
+
+  const TAB_KEYS = ["record", "ai", "edit", "maqam", "export"];
+  const TAB_LABELS = ["🎙 Ηχογράφηση", "🤖 AI Μεταγραφή", "✏️ Επεξεργασία", "🎵 Μακάμ", "📄 Εξαγωγή"];
 
   const handleInstrumentChange = (inst) => {
     setInstrument(inst);
@@ -34,7 +46,7 @@ export default function App() {
     setDetectedMaqam(maqam);
     setSeyirPath(seyir);
     setIsAnalyzing(false);
-    setActiveTab("edit");
+    setActiveTab(2);
   }, []);
 
   const handleNoteUpdate = (idx, updatedNote) => {
@@ -49,107 +61,213 @@ export default function App() {
     setNotes((prev) => [...prev, note].sort((a, b) => a.time - b.time));
   };
 
-  return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-logo">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <ellipse cx="18" cy="22" rx="10" ry="12" fill="#c9a96e" opacity="0.9" />
-            <rect x="17" y="2" width="2" height="12" rx="1" fill="#8b6914" />
-            <line x1="14" y1="18" x2="22" y2="18" stroke="#3a2a0a" strokeWidth="0.8" />
-            <line x1="14" y1="21" x2="22" y2="21" stroke="#3a2a0a" strokeWidth="0.8" />
-            <line x1="14" y1="24" x2="22" y2="24" stroke="#3a2a0a" strokeWidth="0.8" />
-            <line x1="15" y1="27" x2="21" y2="27" stroke="#3a2a0a" strokeWidth="0.8" />
-          </svg>
-          <span className="logo-text">مقام<em>TAB</em></span>
-        </div>
-        <nav className="header-nav">
-          {["record", "edit", "maqam", "export"].map((t) => (
-            <button
-              key={t}
-              className={`nav-btn ${activeTab === t ? "active" : ""}`}
-              onClick={() => setActiveTab(t)}
-            >
-              {t === "record" ? "🎙 Ηχογράφηση" :
-               t === "edit" ? "✏️ Επεξεργασία" :
-               t === "maqam" ? "🎵 Μακάμ" : "📄 Εξαγωγή"}
-            </button>
-          ))}
-        </nav>
-        <div className="header-controls">
-          <select
-            value={instrument}
-            onChange={(e) => handleInstrumentChange(e.target.value)}
-            className="select-input"
-          >
-            <option value="oud">Ούτι (عود)</option>
-            <option value="saz">Σάζι (Saz/Bağlama)</option>
-          </select>
-        </div>
-      </header>
+  const handleAIImport = useCallback((notes, maqam, tempo) => {
+    setNotes(notes);
+    if (maqam) setDetectedMaqam(maqam);
+    if (tempo) setTempo(tempo);
+    setSeyirPath(maqam?.seyirPath || []);
+    setActiveTab(2);
+  }, []);
 
-      <div className="app-body">
-        <aside className="sidebar">
+  const totalDuration = notes.length > 0
+    ? Math.max(...notes.map(n => n.time + n.duration)).toFixed(1)
+    : "—";
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", bgcolor: "background.default" }}>
+      {/* Top AppBar */}
+      <AppBar
+        position="static"
+        elevation={0}
+        sx={{
+          bgcolor: "background.paper",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          zIndex: 1200,
+        }}
+      >
+        <Toolbar sx={{ gap: 2, minHeight: "56px !important", px: 2 }}>
+          {/* Logo */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 2 }}>
+            <svg width="32" height="32" viewBox="0 0 36 36" fill="none">
+              <ellipse cx="18" cy="22" rx="10" ry="12" fill="#c9a96e" opacity="0.9" />
+              <rect x="17" y="2" width="2" height="12" rx="1" fill="#8b6914" />
+              <line x1="14" y1="18" x2="22" y2="18" stroke="#3a2a0a" strokeWidth="0.8" />
+              <line x1="14" y1="21" x2="22" y2="21" stroke="#3a2a0a" strokeWidth="0.8" />
+              <line x1="14" y1="24" x2="22" y2="24" stroke="#3a2a0a" strokeWidth="0.8" />
+              <line x1="15" y1="27" x2="21" y2="27" stroke="#3a2a0a" strokeWidth="0.8" />
+            </svg>
+            <Typography
+              variant="h6"
+              sx={{
+                fontFamily: "'Amiri', serif",
+                color: "primary.main",
+                fontSize: "1.2rem",
+                letterSpacing: 1,
+              }}
+            >
+              مقام<em style={{ fontStyle: "normal", color: "#e8c87a", marginLeft: 2 }}>TAB</em>
+            </Typography>
+          </Box>
+
+          {/* Navigation tabs */}
+          <Tabs
+            value={activeTab}
+            onChange={(_, v) => setActiveTab(v)}
+            sx={{
+              mx: "auto",
+              "& .MuiTabs-indicator": { bgcolor: "primary.main", height: 2 },
+              "& .MuiTab-root": { color: "text.secondary", minWidth: 120 },
+              "& .Mui-selected": { color: "primary.light" },
+            }}
+          >
+            {TAB_LABELS.map((label, i) => (
+              <Tab key={i} label={label} />
+            ))}
+          </Tabs>
+
+          {/* Instrument selector */}
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <Select
+              value={instrument}
+              onChange={(e) => handleInstrumentChange(e.target.value)}
+              sx={{
+                bgcolor: "background.default",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+                fontSize: "0.75rem",
+              }}
+            >
+              <MenuItem value="oud">Ούτι (عود)</MenuItem>
+              <MenuItem value="saz">Σάζι (Saz/Bağlama)</MenuItem>
+            </Select>
+          </FormControl>
+        </Toolbar>
+      </AppBar>
+
+      {/* Main body */}
+      <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* Sidebar */}
+        <Box
+          sx={{
+            width: SIDEBAR_WIDTH,
+            flexShrink: 0,
+            bgcolor: "background.paper",
+            borderRight: "1px solid",
+            borderColor: "divider",
+            overflowY: "auto",
+            p: 1.5,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
           <TuningPanel
             instrument={instrument}
             tuning={tuning}
             onTuningChange={setTuning}
           />
+
           {detectedMaqam && (
-            <div className="detected-maqam">
-              <div className="dm-label">Ανιχνεύθηκε</div>
-              <div className="dm-name">{detectedMaqam.name}</div>
-              <div className="dm-arabic">{detectedMaqam.arabic}</div>
-              <div className="dm-conf">
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, rgba(201,169,110,0.1), rgba(139,58,42,0.1))",
+                border: "1px solid rgba(201,169,110,0.3)",
+                borderRadius: 1,
+                p: 1.5,
+              }}
+            >
+              <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: 1.5, display: "block" }}>
+                Ανιχνεύθηκε
+              </Typography>
+              <Typography variant="h6" sx={{ color: "primary.light", fontFamily: "'Playfair Display', serif", fontSize: "1.1rem" }}>
+                {detectedMaqam.name}
+              </Typography>
+              <Typography sx={{ fontFamily: "'Amiri', serif", fontSize: "1.1rem", color: "primary.main", direction: "rtl" }}>
+                {detectedMaqam.arabic}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
                 {Math.round(detectedMaqam.confidence * 100)}% βεβαιότητα
-              </div>
-              <div className="seyir-indicator">
-                <span className="seyir-label">Σέιρ:</span>
-                <span className={`seyir-direction ${detectedMaqam.seyirDirection}`}>
-                  {detectedMaqam.seyirDirection === "ascending" ? "↗ Ανοδικό" :
-                   detectedMaqam.seyirDirection === "descending" ? "↘ Καθοδικό" : "↕ Μικτό"}
-                </span>
-              </div>
-            </div>
+              </Typography>
+              <Box sx={{ mt: 0.5 }}>
+                <Chip
+                  size="small"
+                  label={detectedMaqam.seyirDirection === "ascending" ? "↗ Ανοδικό" :
+                    detectedMaqam.seyirDirection === "descending" ? "↘ Καθοδικό" : "↕ Μικτό"}
+                  sx={{
+                    bgcolor: detectedMaqam.seyirDirection === "ascending" ? "rgba(74,138,90,0.2)" :
+                      detectedMaqam.seyirDirection === "descending" ? "rgba(212,136,42,0.2)" : "rgba(201,169,110,0.2)",
+                    color: detectedMaqam.seyirDirection === "ascending" ? "#6ab04c" :
+                      detectedMaqam.seyirDirection === "descending" ? "warning.main" : "primary.main",
+                    fontSize: "0.65rem",
+                  }}
+                />
+              </Box>
+            </Box>
           )}
-          <div className="sidebar-section">
-            <div className="section-title">Ρυθμός</div>
-            <div className="tempo-row">
-              <label>BPM</label>
-              <input
-                type="range" min="40" max="240" value={tempo}
-                onChange={(e) => setTempo(+e.target.value)}
-                className="slider"
+
+          <Divider sx={{ borderColor: "divider" }} />
+
+          {/* Tempo */}
+          <Box>
+            <Typography variant="caption" sx={{ color: "primary.main", textTransform: "uppercase", letterSpacing: 1.5, display: "block", mb: 1 }}>
+              Ρυθμός
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+              <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 30 }}>BPM</Typography>
+              <Slider
+                value={tempo}
+                min={40} max={240}
+                onChange={(_, v) => setTempo(v)}
+                size="small"
+                sx={{ color: "primary.main", flex: 1 }}
               />
-              <span className="tempo-val">{tempo}</span>
-            </div>
-            <div className="quant-row">
-              <label>Κβαντισμός</label>
-              <select
+              <Typography variant="caption" sx={{ color: "primary.light", minWidth: 28 }}>{tempo}</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 55 }}>Κβαντ.</Typography>
+              <Select
                 value={quantization}
                 onChange={(e) => setQuantization(e.target.value)}
-                className="select-input small"
+                size="small"
+                sx={{
+                  fontSize: "0.7rem",
+                  bgcolor: "background.default",
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+                  flex: 1,
+                }}
               >
-                <option value="1/4">1/4</option>
-                <option value="1/8">1/8</option>
-                <option value="1/16">1/16</option>
-                <option value="1/32">1/32</option>
-              </select>
-            </div>
-          </div>
-          {notes.length > 0 && (
-            <div className="sidebar-section">
-              <div className="section-title">Στατιστικά</div>
-              <div className="stats">
-                <div className="stat"><span>Νότες</span><strong>{notes.length}</strong></div>
-                <div className="stat"><span>Διάρκεια</span><strong>{notes.length > 0 ? (Math.max(...notes.map(n => n.time + n.duration))).toFixed(1) + "s" : "—"}</strong></div>
-              </div>
-            </div>
-          )}
-        </aside>
+                {["1/4", "1/8", "1/16", "1/32"].map(q => (
+                  <MenuItem key={q} value={q} sx={{ fontSize: "0.7rem" }}>{q}</MenuItem>
+                ))}
+              </Select>
+            </Box>
+          </Box>
 
-        <main className="main-content">
-          {activeTab === "record" && (
+          {notes.length > 0 && (
+            <>
+              <Divider sx={{ borderColor: "divider" }} />
+              <Box>
+                <Typography variant="caption" sx={{ color: "primary.main", textTransform: "uppercase", letterSpacing: 1.5, display: "block", mb: 1 }}>
+                  Στατιστικά
+                </Typography>
+                <Stack spacing={0.5}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: "text.secondary" }}>Νότες</Typography>
+                    <Typography variant="caption" sx={{ color: "primary.light", fontWeight: 600 }}>{notes.length}</Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: "text.secondary" }}>Διάρκεια</Typography>
+                    <Typography variant="caption" sx={{ color: "primary.light", fontWeight: 600 }}>{totalDuration}s</Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            </>
+          )}
+        </Box>
+
+        {/* Main content */}
+        <Box sx={{ flex: 1, overflow: "auto", bgcolor: "background.default" }}>
+          {activeTab === 0 && (
             <AudioEngine
               ref={audioEngineRef}
               instrument={instrument}
@@ -163,8 +281,16 @@ export default function App() {
             />
           )}
 
-          {activeTab === "edit" && (
-            <div className="edit-panel">
+          {activeTab === 1 && (
+            <AITranscribePanel
+              instrument={instrument}
+              quantization={quantization}
+              onNotesImported={handleAIImport}
+            />
+          )}
+
+          {activeTab === 2 && (
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
               {audioBuffer && <WaveformViewer buffer={audioBuffer} notes={notes} />}
               <TabEditor
                 notes={notes}
@@ -177,10 +303,10 @@ export default function App() {
                 onNoteAdd={handleNoteAdd}
                 tempo={tempo}
               />
-            </div>
+            </Box>
           )}
 
-          {activeTab === "maqam" && (
+          {activeTab === 3 && (
             <MaqamPanel
               notes={notes}
               detectedMaqam={detectedMaqam}
@@ -189,7 +315,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === "export" && (
+          {activeTab === 4 && (
             <ExportPanel
               notes={notes}
               tuning={tuning}
@@ -198,145 +324,8 @@ export default function App() {
               tempo={tempo}
             />
           )}
-        </main>
-      </div>
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@600;700&display=swap');
-
-        :root {
-          --bg: #0d0a05;
-          --bg2: #15110a;
-          --bg3: #1e1710;
-          --bg4: #261f14;
-          --gold: #c9a96e;
-          --gold2: #e8c87a;
-          --amber: #d4882a;
-          --cream: #f0e8d0;
-          --text: #e8dcc8;
-          --text2: #9a8870;
-          --accent: #8b3a2a;
-          --accent2: #a04830;
-          --green: #4a8a5a;
-          --border: rgba(201,169,110,0.15);
-          --radius: 8px;
-          --font-mono: 'JetBrains Mono', monospace;
-          --font-serif: 'Playfair Display', serif;
-          --font-arabic: 'Amiri', serif;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body { background: var(--bg); color: var(--text); font-family: var(--font-mono); overflow-x: hidden; }
-
-        .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        .app-header {
-          display: flex; align-items: center; gap: 24px;
-          padding: 12px 24px;
-          background: var(--bg2);
-          border-bottom: 1px solid var(--border);
-          backdrop-filter: blur(10px);
-        }
-
-        .header-logo {
-          display: flex; align-items: center; gap: 10px;
-          font-family: var(--font-arabic);
-          font-size: 22px;
-          color: var(--gold);
-          letter-spacing: 1px;
-        }
-        .header-logo em { font-style: normal; color: var(--gold2); margin-left: 2px; }
-
-        .header-nav { display: flex; gap: 4px; margin: 0 auto; }
-
-        .nav-btn {
-          background: none; border: 1px solid transparent;
-          color: var(--text2); padding: 6px 16px; border-radius: var(--radius);
-          cursor: pointer; font-family: var(--font-mono); font-size: 12px;
-          transition: all .2s;
-        }
-        .nav-btn:hover { color: var(--gold); border-color: var(--border); }
-        .nav-btn.active {
-          background: var(--bg4); color: var(--gold2);
-          border-color: rgba(201,169,110,0.4);
-        }
-
-        .select-input {
-          background: var(--bg3); border: 1px solid var(--border);
-          color: var(--text); padding: 6px 10px; border-radius: var(--radius);
-          font-family: var(--font-mono); font-size: 12px; cursor: pointer;
-        }
-        .select-input.small { font-size: 11px; padding: 4px 8px; }
-        .select-input:focus { outline: 1px solid var(--gold); }
-
-        .app-body { display: flex; flex: 1; overflow: hidden; }
-
-        .sidebar {
-          width: 220px; flex-shrink: 0;
-          background: var(--bg2);
-          border-right: 1px solid var(--border);
-          overflow-y: auto; padding: 16px 12px;
-          display: flex; flex-direction: column; gap: 16px;
-        }
-
-        .sidebar-section { display: flex; flex-direction: column; gap: 8px; }
-
-        .section-title {
-          font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
-          color: var(--gold); border-bottom: 1px solid var(--border);
-          padding-bottom: 4px;
-        }
-
-        .detected-maqam {
-          background: linear-gradient(135deg, rgba(201,169,110,0.1), rgba(139,58,42,0.1));
-          border: 1px solid rgba(201,169,110,0.3);
-          border-radius: var(--radius); padding: 12px;
-        }
-        .dm-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); }
-        .dm-name { font-family: var(--font-serif); font-size: 18px; color: var(--gold2); margin: 2px 0; }
-        .dm-arabic { font-family: var(--font-arabic); font-size: 20px; color: var(--gold); direction: rtl; }
-        .dm-conf { font-size: 10px; color: var(--text2); margin-top: 4px; }
-        .seyir-indicator { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-        .seyir-label { font-size: 10px; color: var(--text2); }
-        .seyir-direction { font-size: 11px; font-weight: 600; }
-        .seyir-direction.ascending { color: #6ab04c; }
-        .seyir-direction.descending { color: var(--amber); }
-        .seyir-direction.mixed { color: var(--gold); }
-
-        .tempo-row, .quant-row {
-          display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        }
-        .tempo-row label, .quant-row label { font-size: 10px; color: var(--text2); min-width: 60px; }
-        .tempo-val { font-size: 11px; color: var(--gold); min-width: 28px; }
-
-        .slider {
-          flex: 1; accent-color: var(--gold);
-          height: 4px; cursor: pointer;
-        }
-
-        .stats { display: flex; flex-direction: column; gap: 4px; }
-        .stat { display: flex; justify-content: space-between; font-size: 11px; }
-        .stat span { color: var(--text2); }
-        .stat strong { color: var(--gold2); }
-
-        .main-content {
-          flex: 1; overflow: auto;
-          background: var(--bg);
-        }
-
-        .edit-panel { display: flex; flex-direction: column; height: 100%; }
-
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
-      `}</style>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }

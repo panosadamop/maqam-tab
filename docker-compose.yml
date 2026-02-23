@@ -23,20 +23,21 @@ services:
       - maqamtab
     environment:
       - PYTHONUNBUFFERED=1
-      # Whisper model: tiny (fast) | base | small | medium | large (accurate)
+      # Whisper model size: tiny | base | small | medium | large
+      # larger = more accurate but slower & more RAM
       - WHISPER_MODEL=base
     volumes:
-      # Cache Whisper model weights between rebuilds
-      - whisper_models:/root/.cache/whisper
+      # Cache Whisper models between container rebuilds
+      - whisper_cache:/root/.cache/whisper
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
-      start_period: 90s  # allow model download time
+      start_period: 60s   # give Whisper model download time
       retries: 3
 
-  # Uncomment for NVIDIA GPU acceleration:
+  # GPU variant (uncomment if you have NVIDIA GPU + nvidia-docker)
   # backend-gpu:
   #   extends: backend
   #   deploy:
@@ -52,4 +53,4 @@ networks:
     driver: bridge
 
 volumes:
-  whisper_models:
+  whisper_cache:

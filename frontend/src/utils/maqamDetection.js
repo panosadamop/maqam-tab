@@ -48,7 +48,7 @@ export function detectMaqam(notes, rootHint = null) {
   return {
     key: best.key,
     name: best.maqam.name,
-    arabic: best.maqam.arabic,
+    name: best.maqam.name,
     description: best.maqam.description,
     root: best.root,
     confidence,

@@ -1,13 +1,9 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.6
-python-multipart>=0.0.9
-pydantic>=2.8.2
-
-# AI Transcription pipeline
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+pydantic>=2.9
 openai-whisper>=20231117
 yt-dlp>=2024.1.1
 ffmpeg-python>=0.2.0
 numpy>=1.24.0
 torch>=2.0.0
-
-# torch -- install separately: pip install torch --index-url https://download.pytorch.org/whl/cpu

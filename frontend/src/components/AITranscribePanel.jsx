@@ -146,7 +146,6 @@ function TranscriptionResult({ job, onImport }) {
           {maqam && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.25 }}>
               <Typography variant="caption" sx={{ color: "primary.main" }}>{maqam.name}</Typography>
-              <Typography sx={{ fontFamily: "'Amiri', serif", fontSize: "0.9rem", color: "primary.main" }}>{maqam.arabic}</Typography>
               <Typography variant="caption" sx={{ color: "text.secondary" }}>{Math.round((maqam.confidence || 0) * 100)}%</Typography>
             </Box>
           )}
@@ -437,7 +436,7 @@ export default function AITranscribePanel({ instrument, quantization, onNotesImp
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Typography variant="caption" sx={{ color: "text.secondary", alignSelf: "center" }}>Παραδείγματα:</Typography>
             {[
-              { label: "Ούτι — Μακάμ Rast", url: "https://www.youtube.com/watch?v=dGzSIPcNb1E" },
+              { label: "Ούτι — Μακάμ Rast", url: "https://www.youtube.com/watch?v=-w6v87aak3w" },
               { label: "Τουρκικό Σάζι", url: "https://www.youtube.com/watch?v=pFpBTnl8LKk" },
             ].map((ex) => (
               <Chip
@@ -499,9 +498,17 @@ export default function AITranscribePanel({ instrument, quantization, onNotesImp
 
       {/* Pipeline info */}
       <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.paper", borderColor: "divider", mb: 2 }}>
-        <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 600, display: "block", mb: 1 }}>
-          Πώς λειτουργεί
-        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+          <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 600 }}>
+            Πώς λειτουργεί
+          </Typography>
+          <Chip
+            label="💡 Χρησιμοποιήστε το κουμπί «Δείγμα Rast» στο sidebar για γρήγορη προεπισκόπηση"
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: "0.6rem", height: 18, borderColor: "primary.dark", color: "primary.main", maxWidth: 340, whiteSpace: "normal", height: "auto", py: 0.25 }}
+          />
+        </Box>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
           {PIPELINE_STEPS(mode, quantization, useWhisper).map((step, i) => (
             <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

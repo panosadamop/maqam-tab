@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import {
   AppBar, Toolbar, Box, Tabs, Tab, Drawer, Typography,
   Select, MenuItem, FormControl, Slider, Chip, Stack,
-  Divider, IconButton, Tooltip,
+  Divider, IconButton, Tooltip, Button,
 } from "@mui/material";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
 import AudioEngine from "./components/AudioEngine";
@@ -12,8 +12,10 @@ import TuningPanel from "./components/TuningPanel";
 import ExportPanel from "./components/ExportPanel";
 import WaveformViewer from "./components/WaveformViewer";
 import AITranscribePanel from "./components/AITranscribePanel";
+import SampleBanner from "./components/SampleBanner";
 import { INSTRUMENTS } from "./utils/instruments";
 import { MAQAMAT } from "./utils/maqamat";
+import { generateRastSample } from "./utils/sampleRast";
 
 const SIDEBAR_WIDTH = 230;
 
@@ -30,6 +32,7 @@ export default function App() {
   const [quantization, setQuantization] = useState("1/8");
   const [selectedNote, setSelectedNote] = useState(null);
   const [seyirPath, setSeyirPath] = useState([]);
+  const [sampleDismissed, setSampleDismissed] = useState(false);
   const audioEngineRef = useRef(null);
 
   const TAB_KEYS = ["record", "ai", "edit", "maqam", "export"];
@@ -69,6 +72,17 @@ export default function App() {
     setActiveTab(2);
   }, []);
 
+  const handleLoadRastSample = useCallback(() => {
+    const { notes, maqam, tempo: sampleTempo } = generateRastSample(tuning, instrument, tempo);
+    setNotes(notes);
+    setDetectedMaqam(maqam);
+    setSeyirPath(maqam.seyirPath);
+    setTempo(sampleTempo);
+    setAudioBuffer(null);
+    setSampleDismissed(false);
+    setActiveTab(2);
+  }, [tuning, instrument, tempo]);
+
   const totalDuration = notes.length > 0
     ? Math.max(...notes.map(n => n.time + n.duration)).toFixed(1)
     : "—";
@@ -100,13 +114,13 @@ export default function App() {
             <Typography
               variant="h6"
               sx={{
-                fontFamily: "'Amiri', serif",
+                fontFamily: "'Playfair Display', serif",
                 color: "primary.main",
                 fontSize: "1.2rem",
                 letterSpacing: 1,
               }}
             >
-              مقام<em style={{ fontStyle: "normal", color: "#e8c87a", marginLeft: 2 }}>TAB</em>
+              Maqam<em style={{ fontStyle: "normal", color: "#e8c87a", marginLeft: 2 }}>TAB</em>
             </Typography>
           </Box>
 
@@ -137,8 +151,8 @@ export default function App() {
                 fontSize: "0.75rem",
               }}
             >
-              <MenuItem value="oud">Ούτι (عود)</MenuItem>
-              <MenuItem value="saz">Σάζι (Saz/Bağlama)</MenuItem>
+              <MenuItem value="oud">Oud</MenuItem>
+              <MenuItem value="saz">Saz / Baglama</MenuItem>
             </Select>
           </FormControl>
         </Toolbar>
@@ -167,6 +181,38 @@ export default function App() {
             onTuningChange={setTuning}
           />
 
+          {/* Rast Sample Button */}
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={handleLoadRastSample}
+            sx={{
+              fontSize: "0.7rem",
+              borderColor: "rgba(201,169,110,0.4)",
+              color: "primary.main",
+              py: 0.75,
+              background: "linear-gradient(135deg, rgba(201,169,110,0.07), rgba(139,58,42,0.07))",
+              "&:hover": {
+                borderColor: "primary.main",
+                background: "linear-gradient(135deg, rgba(201,169,110,0.14), rgba(139,58,42,0.14))",
+              },
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.25,
+              lineHeight: 1.3,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <span>🎵</span>
+              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "primary.light" }}>
+                Rast Sample
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: "0.6rem", color: "text.secondary" }}>
+              Φόρτωση δείγματος σε όλες τις καρτέλες
+            </Typography>
+          </Button>
+
           {detectedMaqam && (
             <Box
               sx={{
@@ -181,9 +227,6 @@ export default function App() {
               </Typography>
               <Typography variant="h6" sx={{ color: "primary.light", fontFamily: "'Playfair Display', serif", fontSize: "1.1rem" }}>
                 {detectedMaqam.name}
-              </Typography>
-              <Typography sx={{ fontFamily: "'Amiri', serif", fontSize: "1.1rem", color: "primary.main", direction: "rtl" }}>
-                {detectedMaqam.arabic}
               </Typography>
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
                 {Math.round(detectedMaqam.confidence * 100)}% βεβαιότητα
@@ -268,29 +311,36 @@ export default function App() {
         {/* Main content */}
         <Box sx={{ flex: 1, overflow: "auto", bgcolor: "background.default" }}>
           {activeTab === 0 && (
-            <AudioEngine
-              ref={audioEngineRef}
-              instrument={instrument}
-              tuning={tuning}
-              tempo={tempo}
-              quantization={quantization}
-              onAudioAnalyzed={handleAudioAnalyzed}
-              onRecordingChange={setIsRecording}
-              onAnalyzingChange={setIsAnalyzing}
-              onAudioBuffer={setAudioBuffer}
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
+              <AudioEngine
+                ref={audioEngineRef}
+                instrument={instrument}
+                tuning={tuning}
+                tempo={tempo}
+                quantization={quantization}
+                onAudioAnalyzed={handleAudioAnalyzed}
+                onRecordingChange={setIsRecording}
+                onAnalyzingChange={setIsAnalyzing}
+                onAudioBuffer={setAudioBuffer}
+              />
+            </Box>
           )}
 
           {activeTab === 1 && (
-            <AITranscribePanel
-              instrument={instrument}
-              quantization={quantization}
-              onNotesImported={handleAIImport}
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
+              <AITranscribePanel
+                instrument={instrument}
+                quantization={quantization}
+                onNotesImported={handleAIImport}
+              />
+            </Box>
           )}
 
           {activeTab === 2 && (
             <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
               {audioBuffer && <WaveformViewer buffer={audioBuffer} notes={notes} />}
               <TabEditor
                 notes={notes}
@@ -307,22 +357,30 @@ export default function App() {
           )}
 
           {activeTab === 3 && (
-            <MaqamPanel
-              notes={notes}
-              detectedMaqam={detectedMaqam}
-              seyirPath={seyirPath}
-              onMaqamOverride={setDetectedMaqam}
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
+              <MaqamPanel
+                notes={notes}
+                detectedMaqam={detectedMaqam}
+                seyirPath={seyirPath}
+                onMaqamOverride={setDetectedMaqam}
+                tuning={tuning}
+                instrument={instrument}
+              />
+            </Box>
           )}
 
           {activeTab === 4 && (
-            <ExportPanel
-              notes={notes}
-              tuning={tuning}
-              instrument={instrument}
-              detectedMaqam={detectedMaqam}
-              tempo={tempo}
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
+              <ExportPanel
+                notes={notes}
+                tuning={tuning}
+                instrument={instrument}
+                detectedMaqam={detectedMaqam}
+                tempo={tempo}
+              />
+            </Box>
           )}
         </Box>
       </Box>

@@ -16,7 +16,7 @@ const theme = createTheme({
     divider: "rgba(201,169,110,0.15)",
   },
   typography: {
-    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+    fontFamily: "'Ubuntu', 'Helvetica Neue', sans-serif",
     fontSize: 12,
     h1: { fontFamily: "'Playfair Display', serif" },
     h2: { fontFamily: "'Playfair Display', serif" },
@@ -31,7 +31,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: "none",
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'Ubuntu', sans-serif",
           fontSize: "0.75rem",
         },
       },
@@ -40,7 +40,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: "none",
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'Ubuntu', sans-serif",
           fontSize: "0.75rem",
           minHeight: 48,
         },
@@ -48,17 +48,17 @@ const theme = createTheme({
     },
     MuiSelect: {
       styleOverrides: {
-        select: { fontFamily: "'JetBrains Mono', monospace", fontSize: "0.75rem" },
+        select: { fontFamily: "'Ubuntu', sans-serif", fontSize: "0.75rem" },
       },
     },
     MuiInputBase: {
       styleOverrides: {
-        root: { fontFamily: "'JetBrains Mono', monospace", fontSize: "0.75rem" },
+        root: { fontFamily: "'Ubuntu', sans-serif", fontSize: "0.75rem" },
       },
     },
     MuiTooltip: {
       styleOverrides: {
-        tooltip: { fontFamily: "'JetBrains Mono', monospace", fontSize: "0.7rem" },
+        tooltip: { fontFamily: "'Ubuntu', sans-serif", fontSize: "0.7rem" },
       },
     },
     MuiPaper: {
@@ -74,7 +74,7 @@ createRoot(document.getElementById("root")).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@600;700&display=swap');
         body { overflow: hidden; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0d0a05; }

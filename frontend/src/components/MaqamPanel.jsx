@@ -1,9 +1,10 @@
 import { useState } from "react";
 import {
   Box, Typography, Paper, Grid, LinearProgress, Chip,
-  Select, MenuItem, FormControl, InputLabel,
+  Select, MenuItem, FormControl, InputLabel, ListSubheader,
 } from "@mui/material";
-import { MAQAMAT, getMaqamList } from "../utils/maqamat";
+import { MAQAMAT, getMaqamList, getMaqamsByTier } from "../utils/maqamat";
+import MaqamTablature from "./MaqamTablature";
 
 const NOTE_NAMES_QT = [
   "C", "C↑", "C#", "D↓", "D", "D↑", "D#", "Eb↓",
@@ -13,9 +14,16 @@ const NOTE_NAMES_QT = [
 
 const DEGREE_LABELS = ["I", "♭II", "II", "♭III", "III", "IV", "♯IV", "V", "♭VI", "VI", "♭VII", "VII", "VIII"];
 
-export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOverride }) {
+export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOverride, tuning, instrument }) {
   const [overrideKey, setOverrideKey] = useState("");
-  const maqamList = getMaqamList();
+  const maqamsByTier = getMaqamsByTier();
+  const TIER_LABELS = {
+    1: "Tier 1 — Universal",
+    2: "Tier 2 — Very Common",
+    3: "Tier 3 — Common",
+    4: "Tier 4 — Regional / Advanced",
+    5: "Tier 5 — Rare / Historical",
+  };
 
   // Build pitch class histogram
   const histogram = Array(24).fill(0);
@@ -34,7 +42,7 @@ export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOve
     if (key && MAQAMAT[key]) {
       const maqam = MAQAMAT[key];
       onMaqamOverride({
-        key, name: maqam.name, arabic: maqam.arabic,
+        key, name: maqam.name,
         description: maqam.description, intervals: maqam.intervals,
         confidence: 1.0, seyirDirection: maqam.seyir.type, manualOverride: true,
       });
@@ -64,9 +72,6 @@ export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOve
               <>
                 <Typography variant="h4" sx={{ color: "primary.light", fontFamily: "'Playfair Display', serif" }}>
                   {detectedMaqam.name}
-                </Typography>
-                <Typography sx={{ fontFamily: "'Amiri', serif", fontSize: "2rem", color: "primary.main", direction: "rtl", my: 0.5 }}>
-                  {detectedMaqam.arabic}
                 </Typography>
 
                 {detectedMaqam.manualOverride && (
@@ -117,7 +122,7 @@ export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOve
                           <Typography sx={{ fontSize: "0.6rem", color: "primary.main" }}>
                             {DEGREE_LABELS[i] || i}
                           </Typography>
-                          <Typography sx={{ fontSize: "0.65rem", color: "text.primary", fontFamily: "monospace" }}>
+                          <Typography sx={{ fontSize: "0.65rem", color: "text.primary", fontFamily: "'Ubuntu Mono', monospace" }}>
                             {cents}¢
                           </Typography>
                         </Box>
@@ -211,39 +216,75 @@ export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOve
           </Grid>
         )}
 
+        {/* Maqam tablature — shown when any maqam is active */}
+        {detectedMaqam?.key && MAQAMAT[detectedMaqam.key] && (
+          <Grid item xs={12}>
+            <Paper variant="outlined" sx={{ p: 2.5, bgcolor: "background.paper", borderColor: "rgba(201,169,110,0.3)" }}>
+              <Typography variant="caption" sx={{ color: "primary.main", textTransform: "uppercase", letterSpacing: 1.5, display: "block", mb: 1.5, borderBottom: "1px solid", borderColor: "divider", pb: 0.75 }}>
+                🎸 Scale Tablature — {detectedMaqam.name}
+              </Typography>
+              <MaqamTablature
+                maqam={MAQAMAT[detectedMaqam.key]}
+                tuning={tuning}
+                instrument={instrument}
+              />
+            </Paper>
+          </Grid>
+        )}
+
         {/* Manual override */}
         <Grid item xs={12} md={seyirPath.length > 0 ? 6 : 8}>
           <Paper variant="outlined" sx={{ p: 2.5, bgcolor: "background.paper", borderColor: "divider" }}>
             <Typography variant="caption" sx={{ color: "primary.main", textTransform: "uppercase", letterSpacing: 1.5, display: "block", mb: 1.5, borderBottom: "1px solid", borderColor: "divider", pb: 0.75 }}>
-              Χειροκίνητη Επιλογή Μακάμ
+              Manual Maqam Override
             </Typography>
             <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-              <InputLabel sx={{ fontSize: "0.75rem" }}>Επιλέξτε μακάμ</InputLabel>
+              <InputLabel sx={{ fontSize: "0.75rem" }}>Select maqam</InputLabel>
               <Select
                 value={overrideKey}
-                label="Επιλέξτε μακάμ"
+                label="Select maqam"
                 onChange={e => handleOverride(e.target.value)}
                 sx={{ fontSize: "0.75rem" }}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
               >
-                <MenuItem value="" sx={{ fontSize: "0.75rem" }}>— Χωρίς επιλογή —</MenuItem>
-                {maqamList.map(m => (
-                  <MenuItem key={m.key} value={m.key} sx={{ fontSize: "0.75rem" }}>
-                    {m.name} ({m.arabic})
-                  </MenuItem>
-                ))}
+                <MenuItem value="" sx={{ fontSize: "0.75rem" }}>— No override —</MenuItem>
+                {Object.entries(maqamsByTier).map(([tier, maqams]) => [
+                  <ListSubheader key={`tier-${tier}`} sx={{ fontSize: "0.6rem", letterSpacing: 1.5, textTransform: "uppercase", color: "primary.main", bgcolor: "background.paper", lineHeight: "26px" }}>
+                    {TIER_LABELS[tier]}
+                  </ListSubheader>,
+                  ...maqams.map(m => (
+                    <MenuItem key={m.key} value={m.key} sx={{ fontSize: "0.75rem", pl: 2, display: "flex", gap: 1 }}>
+                      <span>{m.name}</span>
+                      {m.family && m.family !== m.name && (
+                        <Typography component="span" sx={{ fontSize: "0.6rem", color: "text.secondary", ml: "auto" }}>
+                          {m.family}
+                        </Typography>
+                      )}
+                    </MenuItem>
+                  )),
+                ])}
               </Select>
             </FormControl>
 
-            {overrideKey && MAQAMAT[overrideKey] && (
-              <Box sx={{ p: 1.5, bgcolor: "background.default", borderRadius: 1 }}>
-                <Typography sx={{ fontFamily: "'Amiri', serif", fontSize: "1.5rem", color: "primary.main", direction: "rtl", textAlign: "right" }}>
-                  {MAQAMAT[overrideKey].arabic}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.5 }}>
-                  {MAQAMAT[overrideKey].description}
-                </Typography>
-              </Box>
-            )}
+            {overrideKey && MAQAMAT[overrideKey] && (() => {
+              const m = MAQAMAT[overrideKey];
+              return (
+                <Box sx={{ p: 1.5, bgcolor: "background.default", borderRadius: 1 }}>
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 0.75 }}>
+                    {m.tradition?.map(t => (
+                      <Chip key={t} label={t} size="small" sx={{ height: 16, fontSize: "0.55rem", bgcolor: "rgba(201,169,110,0.15)", color: "primary.main" }} />
+                    ))}
+                    {m.family && (
+                      <Chip label={`Family: ${m.family}`} size="small" variant="outlined" sx={{ height: 16, fontSize: "0.55rem", borderColor: "divider", color: "text.secondary" }} />
+                    )}
+                    <Chip label={TIER_LABELS[m.tier]?.replace("Tier", "T")} size="small" variant="outlined" sx={{ height: 16, fontSize: "0.55rem", borderColor: "divider", color: "text.secondary" }} />
+                  </Box>
+                  <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
+                    {m.description}
+                  </Typography>
+                </Box>
+              );
+            })()}
           </Paper>
         </Grid>
       </Grid>

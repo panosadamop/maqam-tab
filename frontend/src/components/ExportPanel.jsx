@@ -37,7 +37,7 @@ function generateMusicXML(notes, tuning, instrument, maqam, tempo) {
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
-  <work><work-title>${maqam ? maqam.name + " - " + maqam.arabic : "Untitled"}</work-title></work>
+  <work><work-title>${maqam ? maqam.name : "Untitled"}</work-title></work>
   <identification><encoding><software>MaqamTAB</software></encoding></identification>
   <part-list>
     <score-part id="P1">
@@ -150,7 +150,7 @@ function SvgTabPreview({ notes, tuning, tempo }) {
         return (
           <g key={sIdx}>
             <line x1={MARGIN_LEFT} y1={y} x2={W - 10} y2={y} stroke="#999" strokeWidth="0.8" />
-            <text x={MARGIN_LEFT - 4} y={y + 4} textAnchor="end" fontSize="9" fill="#666" fontFamily="monospace">{s.name}</text>
+            <text x={MARGIN_LEFT - 4} y={y + 4} textAnchor="end" fontSize="9" fill="#666" fontFamily="'Ubuntu Mono', monospace">{s.name}</text>
           </g>
         );
       })}
@@ -165,7 +165,7 @@ function SvgTabPreview({ notes, tuning, tempo }) {
         return (
           <g key={i}>
             <rect x={x - 6} y={y - 8} width={fretStr.length * 7 + 4} height={16} rx={2} fill="white" />
-            <text x={x} y={y + 4} fontSize="10" fill="#222" fontFamily="monospace" fontWeight="bold">{fretStr}</text>
+            <text x={x} y={y + 4} fontSize="10" fill="#222" fontFamily="'Ubuntu Mono', monospace" fontWeight="bold">{fretStr}</text>
           </g>
         );
       })}
@@ -204,7 +204,7 @@ export default function ExportPanel({ notes, tuning, instrument, detectedMaqam, 
   const handleExportJSON = () => {
     const data = {
       instrument, tuning: tuning.id, tuningName: tuning.name, tempo,
-      maqam: detectedMaqam?.name, maqamArabic: detectedMaqam?.arabic,
+      maqam: detectedMaqam?.name,
       notes: notes.map(n => ({ time: n.time, duration: n.duration, midi: n.midi, microtonalOffset: n.microtonalOffset, string: n.string, fret: n.fret, ornament: n.ornament, velocity: n.velocity })),
     };
     download(JSON.stringify(data, null, 2), `${detectedMaqam?.name || "maqam"}_tab.json`, "application/json");
@@ -245,6 +245,34 @@ export default function ExportPanel({ notes, tuning, instrument, detectedMaqam, 
         {notes.length} νότες • {tuning.name} • {tempo} BPM
       </Typography>
 
+      {/* Rast sample notice */}
+      {detectedMaqam?.isSample && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.5, mb: 2,
+            bgcolor: "rgba(201,169,110,0.06)",
+            borderColor: "rgba(201,169,110,0.35)",
+            display: "flex", alignItems: "center", gap: 1.5,
+          }}
+        >
+          <Typography sx={{ fontSize: "1.2rem" }}>🎵</Typography>
+          <Box>
+            <Typography sx={{ color: "primary.light", fontSize: "0.75rem", fontWeight: 600 }}>
+              Εξάγετε το δείγμα Rast
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              Κλίμακα D · 26 νότες · Ουδέτερη τρίτη (350¢) · Σέιρ ανοδικό
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, ml: "auto" }}>
+            <Typography sx={{ fontFamily: "'Playfair Display', serif", fontSize: "0.9rem", color: "primary.main", fontWeight: 600 }}>
+              Rast
+            </Typography>
+          </Box>
+        </Paper>
+      )}
+
       {/* TAB Preview */}
       <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.paper", borderColor: "divider", mb: 3, overflowX: "auto" }}>
         <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
@@ -255,7 +283,7 @@ export default function ExportPanel({ notes, tuning, instrument, detectedMaqam, 
 
       {/* Status */}
       <Collapse in={!!status}>
-        <Alert severity="success" sx={{ mb: 2, "& .MuiAlert-message": { fontFamily: "monospace", fontSize: "0.75rem" } }}>
+        <Alert severity="success" sx={{ mb: 2, "& .MuiAlert-message": { fontFamily: "'Ubuntu Mono', monospace", fontSize: "0.75rem" } }}>
           {status}
         </Alert>
       </Collapse>
@@ -338,7 +366,7 @@ export default function ExportPanel({ notes, tuning, instrument, detectedMaqam, 
           <Box
             component="pre"
             sx={{
-              p: 2, m: 0, fontFamily: "monospace", fontSize: "0.65rem",
+              p: 2, m: 0, fontFamily: "'Ubuntu Mono', monospace", fontSize: "0.65rem",
               color: "text.secondary", overflowX: "auto", maxHeight: 300,
               overflowY: "auto", lineHeight: 1.6, whiteSpace: "pre",
             }}

@@ -273,8 +273,6 @@ const AudioEngine = forwardRef(function AudioEngine(
           </Typography>
         ))}
       </Paper>
-
-      {/* Processing overlay */}
       <Backdrop open={status === "processing"} sx={{ zIndex: 1300 }}>
         <Paper sx={{ p: 5, textAlign: "center", minWidth: 320, bgcolor: "background.paper" }}>
           <CircularProgress sx={{ color: "primary.main", mb: 2 }} />

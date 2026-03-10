@@ -13,7 +13,8 @@ import ExportPanel from "./components/ExportPanel";
 import WaveformViewer from "./components/WaveformViewer";
 import AITranscribePanel from "./components/AITranscribePanel";
 import SampleBanner from "./components/SampleBanner";
-import { INSTRUMENTS } from "./utils/instruments";
+import { INSTRUMENTS, expandSazTuning } from "./utils/instruments";
+import { loadSoundfont } from "./utils/audioEngine";
 import { MAQAMAT } from "./utils/maqamat";
 import { generateRastSample } from "./utils/sampleRast";
 
@@ -34,6 +35,28 @@ export default function App() {
   const [seyirPath, setSeyirPath] = useState([]);
   const [sampleDismissed, setSampleDismissed] = useState(false);
   const audioEngineRef = useRef(null);
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  const [audioMode,  setAudioMode]  = useState("synth");  // "synth" | "soundfont"
+  const [sazStrings, setSazStrings] = useState("3");       // "3" | "7"
+  const [sfLoading,  setSfLoading]  = useState(false);
+  const [sfReady,    setSfReady]    = useState(false);
+
+  // Compute effective tuning (expanded for saz 7-string mode)
+  const effectiveTuning = (instrument === "saz" && sazStrings === "7")
+    ? expandSazTuning(tuning)
+    : tuning;
+
+  const handleAudioModeChange = async (mode) => {
+    setAudioMode(mode);
+    if (mode === "soundfont" && !sfReady) {
+      setSfLoading(true);
+      const ok = await loadSoundfont(instrument);
+      setSfReady(ok);
+      setSfLoading(false);
+      if (!ok) setAudioMode("synth"); // fallback
+    }
+  };
 
   const TAB_KEYS = ["record", "ai", "edit", "maqam", "export"];
   const TAB_LABELS = ["🎙 Ηχογράφηση", "🤖 AI Μεταγραφή", "✏️ Επεξεργασία", "🎵 Μακάμ", "📄 Εξαγωγή"];
@@ -286,6 +309,97 @@ export default function App() {
             </Box>
           </Box>
 
+          {/* ── Settings ── */}
+          <Divider sx={{ borderColor: "divider" }} />
+          <Box>
+            <Typography variant="caption" sx={{
+              color: "primary.main", textTransform: "uppercase",
+              letterSpacing: 1.5, display: "block", mb: 1.5
+            }}>
+              Ρυθμίσεις
+            </Typography>
+
+            {/* Audio mode */}
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.5 }}>
+              Ήχος οργάνου
+            </Typography>
+            <Box sx={{ display: "flex", gap: 0.5, mb: 1.5 }}>
+              {[
+                { val: "synth",     label: "Synth",    icon: "🎛" },
+                { val: "soundfont", label: "Samples",  icon: "🎵" },
+              ].map(({ val, label, icon }) => (
+                <Box
+                  key={val}
+                  onClick={() => handleAudioModeChange(val)}
+                  sx={{
+                    flex: 1, py: 0.5, px: 0.75,
+                    borderRadius: 1, border: "1px solid",
+                    cursor: "pointer", textAlign: "center",
+                    borderColor: audioMode === val ? "primary.main" : "divider",
+                    bgcolor: audioMode === val ? "rgba(201,169,110,0.12)" : "background.default",
+                    color: audioMode === val ? "primary.light" : "text.secondary",
+                    fontSize: "0.68rem",
+                    fontFamily: "'Ubuntu Mono', monospace",
+                    transition: "all 0.15s",
+                    "&:hover": { borderColor: "primary.dark" },
+                    opacity: val === "soundfont" && sfLoading ? 0.6 : 1,
+                  }}
+                >
+                  {icon} {sfLoading && val === "soundfont" ? "..." : label}
+                </Box>
+              ))}
+            </Box>
+            {audioMode === "soundfont" && sfReady && (
+              <Typography variant="caption" sx={{ color: "success.main", fontSize: "0.62rem", display: "block", mb: 1 }}>
+                ✓ Samples φορτώθηκαν
+              </Typography>
+            )}
+            {audioMode === "soundfont" && !sfReady && !sfLoading && (
+              <Typography variant="caption" sx={{ color: "warning.main", fontSize: "0.62rem", display: "block", mb: 1 }}>
+                ⚠ Χρειάζεται σύνδεση internet
+              </Typography>
+            )}
+
+            {/* Saz strings (only when saz selected) */}
+            {instrument === "saz" && (
+              <>
+                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.5 }}>
+                  Χορδές σαζ
+                </Typography>
+                <Box sx={{ display: "flex", gap: 0.5 }}>
+                  {[
+                    { val: "3", label: "3 strings", icon: "≡" },
+                    { val: "7", label: "7 strings", icon: "≣" },
+                  ].map(({ val, label, icon }) => (
+                    <Box
+                      key={val}
+                      onClick={() => setSazStrings(val)}
+                      sx={{
+                        flex: 1, py: 0.5, px: 0.75,
+                        borderRadius: 1, border: "1px solid",
+                        cursor: "pointer", textAlign: "center",
+                        borderColor: sazStrings === val ? "primary.main" : "divider",
+                        bgcolor: sazStrings === val ? "rgba(201,169,110,0.12)" : "background.default",
+                        color: sazStrings === val ? "primary.light" : "text.secondary",
+                        fontSize: "0.68rem",
+                        fontFamily: "'Ubuntu Mono', monospace",
+                        transition: "all 0.15s",
+                        "&:hover": { borderColor: "primary.dark" },
+                      }}
+                    >
+                      {icon} {label}
+                    </Box>
+                  ))}
+                </Box>
+                {sazStrings === "7" && (
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontSize: "0.6rem", display: "block", mt: 0.5 }}>
+                    2+2+3 courses — πλήρης εμφάνιση
+                  </Typography>
+                )}
+              </>
+            )}
+          </Box>
+
           {notes.length > 0 && (
             <>
               <Divider sx={{ borderColor: "divider" }} />
@@ -344,8 +458,9 @@ export default function App() {
               {audioBuffer && <WaveformViewer buffer={audioBuffer} notes={notes} />}
               <TabEditor
                 notes={notes}
-                tuning={tuning}
+                tuning={effectiveTuning}
                 instrument={instrument}
+                audioMode={audioMode}
                 selectedNote={selectedNote}
                 onSelectNote={setSelectedNote}
                 onNoteUpdate={handleNoteUpdate}
@@ -364,8 +479,9 @@ export default function App() {
                 detectedMaqam={detectedMaqam}
                 seyirPath={seyirPath}
                 onMaqamOverride={setDetectedMaqam}
-                tuning={tuning}
+                tuning={effectiveTuning}
                 instrument={instrument}
+                audioMode={audioMode}
               />
             </Box>
           )}
@@ -375,7 +491,7 @@ export default function App() {
               <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
               <ExportPanel
                 notes={notes}
-                tuning={tuning}
+                tuning={effectiveTuning}
                 instrument={instrument}
                 detectedMaqam={detectedMaqam}
                 tempo={tempo}

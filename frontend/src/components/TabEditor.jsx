@@ -234,15 +234,25 @@ function TabSVG({ notes, tuning, tempo, selectedNote, onSelectNote, onSvgClick, 
           stroke="rgba(201,169,110,0.05)" strokeWidth={1} strokeDasharray="2 4" />
       ))}
 
-      {/* Strings */}
-      {tuning.strings.map((s, i) => (
-        <g key={i}>
-          <line x1={36} y1={sy(i)} x2={totalWidth - 8} y2={sy(i)}
-            stroke="rgba(201,169,110,0.22)" strokeWidth={1} />
-          <text x={32} y={sy(i) + 4} textAnchor="end" fill="#9a8870" fontSize="10"
-            fontFamily="'Ubuntu Mono',monospace">{s.name}</text>
-        </g>
-      ))}
+      {/* Strings — with course grouping for expanded saz */}
+      {tuning.strings.map((s, i) => {
+        const isCourseEdge = tuning.expanded && s.subIdx === 0 && s.courseGroup > 0;
+        return (
+          <g key={i}>
+            {isCourseEdge && (
+              <line x1={36} y1={sy(i) - STRING_SPACING / 2 + 3} x2={totalWidth - 8} y2={sy(i) - STRING_SPACING / 2 + 3}
+                stroke="rgba(201,169,110,0.1)" strokeWidth="1" strokeDasharray="4 4" />
+            )}
+            <line x1={36} y1={sy(i)} x2={totalWidth - 8} y2={sy(i)}
+              stroke={tuning.expanded && s.subIdx === 0 ? "rgba(201,169,110,0.32)" : "rgba(201,169,110,0.18)"}
+              strokeWidth={tuning.expanded && s.subIdx === 0 ? 1.2 : 0.7} />
+            {(!tuning.expanded || s.subIdx === 0) && (
+              <text x={32} y={sy(i) + 4} textAnchor="end" fill="#9a8870" fontSize="10"
+                fontFamily="'Ubuntu Mono',monospace">{s.name}</text>
+            )}
+          </g>
+        );
+      })}
 
       {/* Notes */}
       {notes.map((note, idx) => {
@@ -287,11 +297,12 @@ function TabSVG({ notes, tuning, tempo, selectedNote, onSelectNote, onSvgClick, 
 }
 
 // ── Main TabEditor ────────────────────────────────────────────────────────────
-export default function TabEditor({ notes, tuning, instrument, selectedNote, onSelectNote, onNoteUpdate, onNoteDelete, onNoteAdd, tempo }) {
+export default function TabEditor({ notes, tuning, instrument, selectedNote, onSelectNote, onNoteUpdate, onNoteDelete, onNoteAdd, tempo, audioMode = "auto" }) {
   const [editingNote, setEditingNote] = useState(null);
   const [viewMode,    setViewMode]    = useState("both");
   const [isPlaying,   setIsPlaying]   = useState(false);
   const [playheadX,   setPlayheadX]   = useState(0);
+
 
   const svgRef      = useRef(null);
   const audioCtxRef = useRef(null);
@@ -315,7 +326,7 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
     const now = ctx.currentTime;
     notes.forEach(n => {
       const mf = (n.midi || n.midiRounded) + (n.microtonalOffset || 0) / 100;
-      playNote(ctx, mf, now + n.time, n.duration || 0.5);
+        playNote(ctx, mf, now + n.time, n.duration || 0.5, instrument, audioMode);
     });
     setIsPlaying(true);
     const start = performance.now();
@@ -387,7 +398,7 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
         bgcolor:"background.paper", borderLeft:0, borderRight:0, borderTop:0, flexShrink:0,
       }}>
 
-        <Tooltip title={isPlaying ? "Stop" : "Play"}>
+        <Tooltip title={isPlaying ? "Stop" : "Play tablature"}>
           <span>
             <IconButton size="small" onClick={isPlaying ? stopPlayback : startPlayback}
               disabled={notes.length === 0}
@@ -403,6 +414,7 @@ export default function TabEditor({ notes, tuning, instrument, selectedNote, onS
             </IconButton>
           </span>
         </Tooltip>
+
 
         <Button size="small" variant="outlined" startIcon={<AddIcon/>}
           onClick={() => onNoteAdd({
@@ -487,7 +499,7 @@ function NoteEditDialog({ note, tuning, instrument, tempo, onUpdate, onClose }) 
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return;
     const ctx = new C();
-    playNote(ctx, derivedMidi, ctx.currentTime, dur);
+    playNote(ctx, derivedMidi, ctx.currentTime, dur, instrument, audioMode);
     setTimeout(() => ctx.close(), (dur + 1.5) * 1000);
   };
 

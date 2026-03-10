@@ -436,7 +436,7 @@ export default function AITranscribePanel({ instrument, quantization, onNotesImp
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Typography variant="caption" sx={{ color: "text.secondary", alignSelf: "center" }}>Παραδείγματα:</Typography>
             {[
-              { label: "Ούτι — Μακάμ Rast", url: "https://www.youtube.com/watch?v=-w6v87aak3w" },
+              { label: "Ούτι — Μακάμ Rast", url: "https://www.youtube.com/watch?v=dGzSIPcNb1E" },
               { label: "Τουρκικό Σάζι", url: "https://www.youtube.com/watch?v=pFpBTnl8LKk" },
             ].map((ex) => (
               <Chip

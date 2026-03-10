@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { MAQAMAT, getMaqamList, getMaqamsByTier } from "../utils/maqamat";
 import MaqamTablature from "./MaqamTablature";
+import FretboardPanel from "./FretboardPanel";
 
 const NOTE_NAMES_QT = [
   "C", "C↑", "C#", "D↓", "D", "D↑", "D#", "Eb↓",
@@ -14,8 +15,9 @@ const NOTE_NAMES_QT = [
 
 const DEGREE_LABELS = ["I", "♭II", "II", "♭III", "III", "IV", "♯IV", "V", "♭VI", "VI", "♭VII", "VII", "VIII"];
 
-export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOverride, tuning, instrument }) {
+export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOverride, tuning, instrument, audioMode = "auto" }) {
   const [overrideKey, setOverrideKey] = useState("");
+  const [maqamView, setMaqamView] = useState("maqam"); // "maqam" | "fretboard"
   const maqamsByTier = getMaqamsByTier();
   const TIER_LABELS = {
     1: "Tier 1 — Universal",
@@ -221,13 +223,49 @@ export default function MaqamPanel({ notes, detectedMaqam, seyirPath, onMaqamOve
           <Grid item xs={12}>
             <Paper variant="outlined" sx={{ p: 2.5, bgcolor: "background.paper", borderColor: "rgba(201,169,110,0.3)" }}>
               <Typography variant="caption" sx={{ color: "primary.main", textTransform: "uppercase", letterSpacing: 1.5, display: "block", mb: 1.5, borderBottom: "1px solid", borderColor: "divider", pb: 0.75 }}>
-                🎸 Scale Tablature — {detectedMaqam.name}
+                🎸 {maqamView === "maqam" ? "Scale Tablature" : "Fingerboard"} — {detectedMaqam.name}
               </Typography>
-              <MaqamTablature
-                maqam={MAQAMAT[detectedMaqam.key]}
-                tuning={tuning}
-                instrument={instrument}
-              />
+
+              {/* View switcher */}
+              <Box sx={{ display: "flex", gap: 0.5, mb: 1.5 }}>
+                {[
+                  { val: "maqam",     label: "🎼 Κλίμακα" },
+                  { val: "fretboard", label: "🎸 Fingerboard" },
+                ].map(({ val, label }) => (
+                  <Box
+                    key={val}
+                    onClick={() => setMaqamView(val)}
+                    sx={{
+                      px: 1, py: 0.4,
+                      borderRadius: 0.75, border: "1px solid",
+                      cursor: "pointer", fontSize: "0.68rem",
+                      fontFamily: "'Ubuntu Mono', monospace",
+                      borderColor: maqamView === val ? "primary.main" : "divider",
+                      bgcolor: maqamView === val ? "rgba(201,169,110,0.1)" : "transparent",
+                      color: maqamView === val ? "primary.light" : "text.secondary",
+                      transition: "all 0.12s",
+                      "&:hover": { borderColor: "primary.dark" },
+                    }}
+                  >
+                    {label}
+                  </Box>
+                ))}
+              </Box>
+
+              {maqamView === "maqam" ? (
+                <MaqamTablature
+                  audioMode={audioMode}
+                  maqam={MAQAMAT[detectedMaqam.key]}
+                  tuning={tuning}
+                  instrument={instrument}
+                />
+              ) : (
+                <FretboardPanel
+                  maqam={detectedMaqam}
+                  tuning={tuning}
+                  instrument={instrument}
+                />
+              )}
             </Paper>
           </Grid>
         )}

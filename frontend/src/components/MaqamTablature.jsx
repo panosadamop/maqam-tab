@@ -176,25 +176,42 @@ function TablatureSVG({ notes, tuning, instrument, highlightedIdx, onHover }) {
         height={HEIGHT}
         style={{ display: "block", fontFamily: "'Ubuntu Mono', monospace" }}
       >
-        {/* String lines */}
-        {tuning.strings.map((s, sIdx) => (
-          <g key={sIdx}>
-            <line
-              x1={LEFT_PAD - 8} y1={stringY(sIdx)}
-              x2={WIDTH - RIGHT_PAD} y2={stringY(sIdx)}
-              stroke="rgba(201,169,110,0.25)"
-              strokeWidth={sIdx === 0 ? 1.5 : 1}
-            />
-            {/* String name label */}
-            <text
-              x={LEFT_PAD - 10} y={stringY(sIdx) + 4}
-              fontSize="9" fill="rgba(201,169,110,0.5)"
-              textAnchor="end"
-            >
-              {s.name}
-            </text>
-          </g>
-        ))}
+        {/* String lines — with course grouping for expanded saz */}
+        {tuning.strings.map((s, sIdx) => {
+          const isCourseEdge = tuning.expanded && s.subIdx === 0 && s.courseGroup > 0;
+          return (
+            <g key={sIdx}>
+              {/* Course divider — small gap between courses in 7-string saz */}
+              {isCourseEdge && (
+                <line
+                  x1={LEFT_PAD - 12} y1={stringY(sIdx) - ROW_H / 2 + 1}
+                  x2={WIDTH - RIGHT_PAD} y2={stringY(sIdx) - ROW_H / 2 + 1}
+                  stroke="rgba(201,169,110,0.12)"
+                  strokeWidth="1"
+                  strokeDasharray="3 3"
+                />
+              )}
+              <line
+                x1={LEFT_PAD - 8} y1={stringY(sIdx)}
+                x2={WIDTH - RIGHT_PAD} y2={stringY(sIdx)}
+                stroke={tuning.expanded && s.subIdx === 0
+                  ? "rgba(201,169,110,0.35)"
+                  : "rgba(201,169,110,0.18)"}
+                strokeWidth={tuning.expanded && s.subIdx === 0 ? 1.2 : 0.7}
+              />
+              {/* String name — only show once per course */}
+              {(!tuning.expanded || s.subIdx === 0) && (
+                <text
+                  x={LEFT_PAD - 10} y={stringY(sIdx) + 4}
+                  fontSize="9" fill="rgba(201,169,110,0.5)"
+                  textAnchor="end"
+                >
+                  {s.name}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
         {/* TAB bracket */}
         <line x1={LEFT_PAD - 8} y1={TOP_PAD} x2={LEFT_PAD - 8} y2={TOP_PAD + (numStrings - 1) * ROW_H + ROW_H / 2 + 4} stroke="rgba(201,169,110,0.3)" strokeWidth="1.5" />
@@ -291,7 +308,7 @@ function TablatureSVG({ notes, tuning, instrument, highlightedIdx, onHover }) {
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────
-export default function MaqamTablature({ maqam, tuning, instrument }) {
+export default function MaqamTablature({ maqam, tuning, instrument, audioMode = "auto" }) {
   const [rootMidi,    setRootMidi]    = useState(62);
   const [hoveredIdx,  setHoveredIdx]  = useState(null);
   const [isPlaying,   setIsPlaying]   = useState(false);
@@ -313,7 +330,7 @@ export default function MaqamTablature({ maqam, tuning, instrument }) {
       setIsPlaying(false);
       return;
     }
-    const result = playScale(scaleNotes, 0.45);
+    const result = playScale(scaleNotes, 0.45, instrument, audioMode);
     if (!result) return;
     audioRef.current = result.ctx;
     setIsPlaying(true);
@@ -321,7 +338,7 @@ export default function MaqamTablature({ maqam, tuning, instrument }) {
       setIsPlaying(false);
       audioRef.current = null;
     }, result.totalDuration * 1000 + 400);
-  }, [isPlaying, scaleNotes, instrument]);
+  }, [isPlaying, scaleNotes, instrument, audioMode]);
 
   return (
     <Box>

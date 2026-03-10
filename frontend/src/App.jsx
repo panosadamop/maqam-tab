@@ -558,8 +558,6 @@ export default function App() {
                 onNoteDelete={handleNoteDelete}
                 onNoteAdd={handleNoteAdd}
                 tempo={tempo}
-                detectedMaqam={detectedMaqam}
-                onMaqamDetected={setDetectedMaqam}
               />
             </Box>
           )}
@@ -569,7 +567,6 @@ export default function App() {
               <SampleBanner maqam={!sampleDismissed ? detectedMaqam : null} onDismiss={() => setSampleDismissed(true)} />
               <MaqamPanel
                 notes={notes}
-                detectedMaqam={detectedMaqam}
                 seyirPath={seyirPath}
                 onMaqamOverride={setDetectedMaqam}
                 tuning={effectiveTuning}
@@ -586,7 +583,6 @@ export default function App() {
                 notes={notes}
                 tuning={effectiveTuning}
                 instrument={instrument}
-                detectedMaqam={detectedMaqam}
                 tempo={tempo}
               />
             </Box>

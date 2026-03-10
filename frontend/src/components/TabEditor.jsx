@@ -18,7 +18,6 @@ import SaveAltIcon     from "@mui/icons-material/SaveAlt";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import { INSTRUMENTS, getAllPositions, midiToName } from "../utils/instruments";
 import { playNote }    from "../utils/audioEngine";
-import { detectMaqam } from "../utils/maqamDetection";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const ORNAMENTS = {
@@ -276,13 +275,68 @@ async function saveToFileSystem(notes, tuning, instrument, detectedMaqam, tempo,
 }
 
 // ── Staff SVG ─────────────────────────────────────────────────────────────────
-function StaffSVG({ notes, tempo, selectedNote, onSelectNote, onEdit, onStaffClick, svgRef, totalWidth, playheadX }) {
+function StaffSVG({ notes, tempo, selectedNote, onSelectNote, onEdit, onStaffClick, onNoteDrag, svgRef, totalWidth, playheadX }) {
   const LS=10, ST=22, NR=7;
   const H = ST + 4*LS + NR*7 + 30;
   const tx = t => 70 + (t * tempo/60) * PIXELS_PER_BEAT;
+
+  // Hover ghost note
+  const [hoverInfo, setHoverInfo] = useState(null);
+  const dragging = useRef(null); // {idx, startX, startY}
+
+  const yToStaffPos = y => Math.round((ST + 2*LS - y) / (LS/2));  // inverse of staffPosToY
+  const staffPosToMidi = pos => {
+    // Convert diatonic staff pos → nearest chromatic MIDI (relative to C4=60)
+    const C4_DIATONIC = 28; // C4 diatonic pos
+    const dPos = pos + C4_DIATONIC;
+    const oct  = Math.floor(dPos / 7);
+    const step = ((dPos % 7) + 7) % 7;
+    const CHROM = [0,2,4,5,7,9,11]; // diatonic → semitone
+    return (oct) * 12 + CHROM[step];
+  };
+
+  const handleMouseMove = e => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // If dragging a note: update it live
+    if (dragging.current !== null) {
+      const time = Math.max(0, ((x - 70) / PIXELS_PER_BEAT) * (60/tempo));
+      const pos  = yToStaffPos(y);
+      const midi = staffPosToMidi(pos);
+      onNoteDrag(dragging.current, { time, midi });
+      return;
+    }
+
+    // Ghost hover note
+    if (x > 70) {
+      const pos  = yToStaffPos(y);
+      const midi = staffPosToMidi(pos);
+      setHoverInfo({ x, pos, midi });
+    } else {
+      setHoverInfo(null);
+    }
+  };
+
+  const handleMouseLeave = () => { setHoverInfo(null); };
+
+  const handleMouseDown = (e, idx) => {
+    e.stopPropagation();
+    dragging.current = idx;
+    onSelectNote(idx);
+  };
+
+  const handleMouseUp = () => { dragging.current = null; };
+
   return (
     <svg ref={svgRef} width={totalWidth} height={H}
-      style={{ display:"block", cursor:"crosshair" }} onClick={onStaffClick}>
+      style={{ display:"block", cursor:"crosshair", userSelect:"none" }}
+      onClick={onStaffClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onMouseUp={handleMouseUp}>
       <rect width={totalWidth} height={H} fill="#0a0805"/>
       <text x={10} y={ST+3.6*LS+4} fontSize="44" fill="#c9a96e" opacity="0.65"
         fontFamily="serif" style={{ userSelect:"none" }}>𝄞</text>
@@ -314,9 +368,10 @@ function StaffSVG({ notes, tempo, selectedNote, onSelectNote, onEdit, onStaffCli
         const flag8=beats<=0.5&&beats>0.25;
         const flag16=beats<=0.25;
         return (
-          <g key={note.id||idx} style={{cursor:"pointer"}}
+          <g key={note.id||idx} style={{cursor:"grab"}}
             onClick={e=>{e.stopPropagation();onSelectNote(sel?null:idx);}}
-            onDoubleClick={e=>{e.stopPropagation();onEdit(idx);}}>
+            onDoubleClick={e=>{e.stopPropagation();onEdit(idx);}}
+            onMouseDown={e=>{ e.stopPropagation(); handleMouseDown(e,idx); }}>
             {ledgers.map(lp=>{
               const ly=staffPosToY(lp,ST,LS);
               return <line key={lp} x1={x-NR-4} y1={ly} x2={x+NR+4} y2={ly}
@@ -362,6 +417,27 @@ function StaffSVG({ notes, tempo, selectedNote, onSelectNote, onEdit, onStaffCli
       {playheadX>0&&(
         <line x1={playheadX} y1={0} x2={playheadX} y2={H}
           stroke="#e8c87a" strokeWidth={1.5} opacity={0.7} strokeDasharray="4 3"/>
+      )}
+
+      {/* ── Ghost hover note ── */}
+      {hoverInfo && (
+        <g opacity={0.4} style={{pointerEvents:"none"}}>
+          <ellipse
+            cx={hoverInfo.x}
+            cy={staffPosToY(hoverInfo.pos, ST, LS)}
+            rx={NR} ry={NR*0.62}
+            fill="#c9a96e" stroke="#e8c87a" strokeWidth={1}/>
+          <text x={hoverInfo.x+NR+4}
+            y={staffPosToY(hoverInfo.pos, ST, LS)+4}
+            fontSize="8" fill="#c9a96e" fontFamily="Ubuntu Mono,monospace">
+            {midiToStaff(hoverInfo.midi).letter}{midiToStaff(hoverInfo.midi).accidental}{midiToStaff(hoverInfo.midi).octave}
+          </text>
+          {/* Horizontal guide line */}
+          <line x1={70} x2={totalWidth}
+            y1={staffPosToY(hoverInfo.pos, ST, LS)}
+            y2={staffPosToY(hoverInfo.pos, ST, LS)}
+            stroke="rgba(201,169,110,0.15)" strokeWidth={1} strokeDasharray="3 5"/>
+        </g>
       )}
     </svg>
   );
@@ -451,72 +527,16 @@ function TabSVG({ notes, tuning, tempo, selectedNote, onSelectNote, onSvgClick, 
   );
 }
 
-// ── Maqam Banner ──────────────────────────────────────────────────────────────
-function MaqamBanner({ maqam, onDismiss }) {
-  if (!maqam) return null;
-  const conf = Math.round((maqam.confidence||0)*100);
-  const seyirColor = maqam.seyirDirection==="ascending"?"#6ab04c"
-    :maqam.seyirDirection==="descending"?"#d4882a":"#5a8fa0";
-  const seyirLabel = maqam.seyirDirection==="ascending"?"↗ Ανοδικό"
-    :maqam.seyirDirection==="descending"?"↘ Καθοδικό":"↕ Μικτό";
-  return (
-    <Box sx={{
-      display:"flex", alignItems:"center", gap:2, px:2.5, py:1,
-      bgcolor:"rgba(201,169,110,0.06)", borderBottom:"1px solid rgba(201,169,110,0.15)",
-      flexShrink:0, flexWrap:"wrap",
-    }}>
-      <Box sx={{ display:"flex", alignItems:"center", gap:1 }}>
-        <Typography sx={{ fontSize:"0.6rem", color:"text.secondary",
-          textTransform:"uppercase", letterSpacing:"0.1em" }}>
-          Ανιχνεύθηκε μακάμ
-        </Typography>
-        <Typography sx={{ fontSize:"1rem", fontWeight:300, color:"primary.light" }}>
-          {maqam.name}
-        </Typography>
-      </Box>
-      {/* Confidence bar */}
-      <Box sx={{ display:"flex", alignItems:"center", gap:0.75 }}>
-        <Box sx={{ width:60, height:5, bgcolor:"rgba(255,255,255,0.06)", borderRadius:3, overflow:"hidden" }}>
-          <Box sx={{
-            width:`${conf}%`, height:"100%",
-            bgcolor: conf>=70?"#6ab04c":conf>=45?"#d4882a":"#a04830",
-            borderRadius:3, transition:"width 0.4s",
-          }}/>
-        </Box>
-        <Typography sx={{ fontSize:"0.62rem", fontFamily:"Ubuntu Mono,monospace",
-          color:"primary.main" }}>{conf}%</Typography>
-      </Box>
-      <Chip label={seyirLabel} size="small" sx={{
-        height:18, fontSize:"0.6rem",
-        bgcolor:`${seyirColor}22`, color:seyirColor,
-        border:`1px solid ${seyirColor}55`,
-      }}/>
-      {maqam.intervals && (
-        <Typography sx={{ fontSize:"0.62rem", fontFamily:"Ubuntu Mono,monospace",
-          color:"text.secondary" }}>
-          {maqam.intervals.join(" · ")}¢
-        </Typography>
-      )}
-      <IconButton size="small" onClick={onDismiss}
-        sx={{ ml:"auto", color:"text.disabled", p:0.25, "&:hover":{ color:"text.secondary" } }}>
-        <CloseIcon sx={{ fontSize:13 }}/>
-      </IconButton>
-    </Box>
-  );
-}
 
 // ── Main TabEditor ─────────────────────────────────────────────────────────────
 export default function TabEditor({
   notes, tuning, instrument, selectedNote, onSelectNote,
   onNoteUpdate, onNoteDelete, onNoteAdd, tempo, audioMode="auto",
-  detectedMaqam: externalMaqam, onMaqamDetected,
 }) {
   const [editingNote,  setEditingNote]  = useState(null);
   const [viewMode,     setViewMode]     = useState("both");
   const [isPlaying,    setIsPlaying]    = useState(false);
   const [playheadX,    setPlayheadX]    = useState(0);
-  const [localMaqam,   setLocalMaqam]   = useState(null);  // from local detection
-  const [maqamDismiss, setMaqamDismiss] = useState(false);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [fullNeck,     setFullNeck]     = useState(true);   // use optimal positions
 
@@ -531,23 +551,7 @@ export default function TabEditor({
     return buildOptimalPositions(notes, tuning, instrument);
   }, [notes, tuning, instrument, fullNeck]);
 
-  // ── Auto-detect maqam when notes change ──────────────────────────────────
-  useEffect(() => {
-    if (notes.length < 4) { setLocalMaqam(null); return; }
-    const timer = setTimeout(() => {
-      try {
-        const result = detectMaqam(notes);
-        if (result) {
-          setLocalMaqam(result);
-          setMaqamDismiss(false);
-          onMaqamDetected?.(result);
-        }
-      } catch (e) { /* detection failed gracefully */ }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [notes]);
 
-  const shownMaqam = externalMaqam || localMaqam;
 
   const totalDuration = notes.length>0
     ? Math.max(...notes.map(n=>n.time+(n.duration||0.5)),4) : 4;
@@ -604,18 +608,68 @@ export default function TabEditor({
     onNoteAdd({id:`note_${Date.now()}`,time,duration:(60/tempo)*0.5,
       midi:om,midiRounded:om,microtonalOffset:0,string:si,fret:0,velocity:80,ornament:null});
   };
+  // staff diatonic pos → midi (C4=60, pos=0)
+  const staffPosToMidi = pos => {
+    const C4_DIATONIC = 28;
+    const dPos = pos + C4_DIATONIC;
+    const oct  = Math.floor(dPos / 7);
+    const step = ((dPos % 7) + 7) % 7;
+    const CHROM = [0,2,4,5,7,9,11];
+    return oct * 12 + CHROM[step];
+  };
+  const yToStaffPos = (y, ST=22, LS=10) =>
+    Math.round((ST + 2*LS - y) / (LS/2));
+
   const handleStaffClick = e => {
     if(!staffSvgRef.current) return;
-    const rect=staffSvgRef.current.getBoundingClientRect();
-    const x=e.clientX-rect.left;
-    const time=((x-70)/PIXELS_PER_BEAT)*(60/tempo);
-    if(time<0) return;
-    if(notes.some(n=>Math.abs(timeToX(n.time)-x)<16)) return;
-    const defaultMidi=tuning.strings[0].midi;
-    onNoteAdd({id:`note_${Date.now()}`,time,duration:(60/tempo)*0.5,
-      midi:defaultMidi,midiRounded:defaultMidi,microtonalOffset:0,
-      string:0,fret:0,velocity:80,ornament:null});
+    const rect = staffSvgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const time = ((x - 70) / PIXELS_PER_BEAT) * (60/tempo);
+    if(time < 0) return;
+    // Don't add if clicking near an existing note
+    if(notes.some(n => Math.abs(timeToX(n.time) - x) < 16)) return;
+    const pos  = yToStaffPos(y);
+    const midi = staffPosToMidi(pos);
+    // Find best string/fret for this midi
+    const { INSTRUMENTS: INST } = { INSTRUMENTS: window.__maqam_instruments ?? {} };
+    const clamped = Math.max(36, Math.min(84, midi));
+    // Find string that has this note closest
+    let bestStr = 0, bestFret = 0, bestDiff = Infinity;
+    tuning.strings.forEach((s, si) => {
+      const cents = (clamped - s.midi) * 100;
+      if (cents >= 0 && cents <= 1200) {
+        const fret = Math.round(cents / 100);
+        const diff = Math.abs(cents - fret*100);
+        if (diff < bestDiff) { bestDiff = diff; bestStr = si; bestFret = fret; }
+      }
+    });
+    onNoteAdd({
+      id:`note_${Date.now()}`, time, duration:(60/tempo)*0.5,
+      midi:clamped, midiRounded:clamped, microtonalOffset:0,
+      string:bestStr, fret:bestFret, velocity:80, ornament:null,
+    });
   };
+
+  // Handle live drag from staff: update note pitch+time
+  const handleNoteDragFromStaff = useCallback((idx, { time, midi }) => {
+    const clamped = Math.max(36, Math.min(84, midi));
+    const note = notes[idx];
+    let bestStr = note.string ?? 0, bestFret = note.fret ?? 0, bestDiff = Infinity;
+    tuning.strings.forEach((s, si) => {
+      const cents = (clamped - s.midi) * 100;
+      if (cents >= 0 && cents <= 1200) {
+        const fret = Math.round(cents / 100);
+        const diff = Math.abs(cents - fret*100);
+        if (diff < bestDiff) { bestDiff = diff; bestStr = si; bestFret = fret; }
+      }
+    });
+    onNoteUpdate(idx, {
+      time: Math.max(0, time),
+      midi: clamped, midiRounded: clamped,
+      string: bestStr, fret: bestFret,
+    });
+  }, [notes, tuning, onNoteUpdate]);
 
   const openEdit = idx => setEditingNote({...notes[idx], idx});
 
@@ -624,17 +678,17 @@ export default function TabEditor({
   const handleSave = async (fmt) => {
     setSaveMenuOpen(false);
     if (hasFSA) {
-      const ok = await saveToFileSystem(displayNotes, tuning, instrument, shownMaqam, tempo, fmt);
+      const ok = await saveToFileSystem(displayNotes, tuning, instrument, null, tempo, fmt);
       if (!ok) {
         // fallback to download
         fmt==="json"
-          ? saveAsJSON(displayNotes, tuning, instrument, shownMaqam, tempo)
-          : saveAsMusicXML(displayNotes, tuning, instrument, shownMaqam, tempo);
+          ? saveAsJSON(displayNotes, tuning, instrument, null, tempo)
+          : saveAsMusicXML(displayNotes, tuning, instrument, null, tempo);
       }
     } else {
       fmt==="json"
-        ? saveAsJSON(displayNotes, tuning, instrument, shownMaqam, tempo)
-        : saveAsMusicXML(displayNotes, tuning, instrument, shownMaqam, tempo);
+        ? saveAsJSON(displayNotes, tuning, instrument, null, tempo)
+        : saveAsMusicXML(displayNotes, tuning, instrument, null, tempo);
     }
   };
 
@@ -772,9 +826,6 @@ export default function TabEditor({
       </Paper>
 
       {/* ── Maqam banner ── */}
-      {!maqamDismiss && shownMaqam && (
-        <MaqamBanner maqam={shownMaqam} onDismiss={()=>setMaqamDismiss(true)}/>
-      )}
 
       {/* ── Score area ── */}
       <Box sx={{flex:1, overflow:"auto", display:"flex", flexDirection:"column"}}>
@@ -782,7 +833,9 @@ export default function TabEditor({
           <Box sx={{borderBottom:"1px solid",borderColor:"divider"}}>
             <StaffSVG notes={displayNotes} tempo={tempo} selectedNote={selectedNote}
               onSelectNote={onSelectNote} onEdit={openEdit}
-              onStaffClick={handleStaffClick} svgRef={staffSvgRef}
+              onStaffClick={handleStaffClick}
+              onNoteDrag={handleNoteDragFromStaff}
+              svgRef={staffSvgRef}
               totalWidth={totalWidth} playheadX={playheadX}/>
           </Box>
         )}

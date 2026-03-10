@@ -558,6 +558,8 @@ export default function App() {
                 onNoteDelete={handleNoteDelete}
                 onNoteAdd={handleNoteAdd}
                 tempo={tempo}
+                detectedMaqam={detectedMaqam}
+                onMaqamDetected={setDetectedMaqam}
               />
             </Box>
           )}

@@ -16,7 +16,7 @@ import SampleBanner from "./components/SampleBanner";
 import { INSTRUMENTS, expandSazTuning } from "./utils/instruments";
 import { loadSoundfont } from "./utils/audioEngine";
 import { MAQAMAT } from "./utils/maqamat";
-import { generateRastSample } from "./utils/sampleRast";
+import { generateRastSample, generateUsaqSample, generateOudScaleSample } from "./utils/sampleRast";
 
 const SIDEBAR_WIDTH = 230;
 
@@ -97,6 +97,28 @@ export default function App() {
 
   const handleLoadRastSample = useCallback(() => {
     const { notes, maqam, tempo: sampleTempo } = generateRastSample(tuning, instrument, tempo);
+    setNotes(notes);
+    setDetectedMaqam(maqam);
+    setSeyirPath(maqam.seyirPath);
+    setTempo(sampleTempo);
+    setAudioBuffer(null);
+    setSampleDismissed(false);
+    setActiveTab(2);
+  }, [tuning, instrument, tempo]);
+
+  const handleLoadUsaqSample = useCallback(() => {
+    const { notes, maqam, tempo: sampleTempo } = generateUsaqSample(tuning, instrument, tempo);
+    setNotes(notes);
+    setDetectedMaqam(maqam);
+    setSeyirPath(maqam.seyirPath);
+    setTempo(sampleTempo);
+    setAudioBuffer(null);
+    setSampleDismissed(false);
+    setActiveTab(2);
+  }, [tuning, instrument, tempo]);
+
+  const handleLoadOudScale = useCallback(() => {
+    const { notes, maqam, tempo: sampleTempo } = generateOudScaleSample(tuning, instrument, tempo);
     setNotes(notes);
     setDetectedMaqam(maqam);
     setSeyirPath(maqam.seyirPath);
@@ -204,37 +226,73 @@ export default function App() {
             onTuningChange={setTuning}
           />
 
-          {/* Rast Sample Button */}
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={handleLoadRastSample}
-            sx={{
-              fontSize: "0.7rem",
-              borderColor: "rgba(201,169,110,0.4)",
-              color: "primary.main",
-              py: 0.75,
-              background: "linear-gradient(135deg, rgba(201,169,110,0.07), rgba(139,58,42,0.07))",
-              "&:hover": {
-                borderColor: "primary.main",
-                background: "linear-gradient(135deg, rgba(201,169,110,0.14), rgba(139,58,42,0.14))",
-              },
-              display: "flex",
-              flexDirection: "column",
-              gap: 0.25,
-              lineHeight: 1.3,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <span>🎵</span>
-              <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: "primary.light" }}>
-                Rast Sample
-              </Typography>
-            </Box>
-            <Typography sx={{ fontSize: "0.6rem", color: "text.secondary" }}>
-              Φόρτωση δείγματος σε όλες τις καρτέλες
+          {/* Sample Buttons */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+            <Typography variant="caption" sx={{
+              fontSize: "0.57rem", fontWeight: 600, letterSpacing: "0.12em",
+              textTransform: "uppercase", color: "rgba(201,169,110,0.45)",
+              display: "block", mb: 0.25,
+            }}>
+              Δείγματα
             </Typography>
-          </Button>
+
+            {/* Rast */}
+            <Button variant="outlined" fullWidth onClick={handleLoadRastSample} sx={{
+              fontSize: "0.7rem", py: 0.65, justifyContent: "flex-start",
+              borderColor: "rgba(106,176,76,0.4)", color: "#6ab04c",
+              bgcolor: "rgba(106,176,76,0.05)",
+              "&:hover": { borderColor: "#6ab04c", bgcolor: "rgba(106,176,76,0.12)" },
+              display: "flex", alignItems: "center", gap: 1,
+            }}>
+              <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#6ab04c", flexShrink: 0 }}/>
+              <Box sx={{ textAlign: "left" }}>
+                <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: "#6ab04c", lineHeight: 1.2 }}>
+                  Rast
+                </Typography>
+                <Typography sx={{ fontSize: "0.57rem", color: "text.secondary", lineHeight: 1.2 }}>
+                  D — ανοδικό σέιρ
+                </Typography>
+              </Box>
+            </Button>
+
+            {/* Uşak */}
+            <Button variant="outlined" fullWidth onClick={handleLoadUsaqSample} sx={{
+              fontSize: "0.7rem", py: 0.65, justifyContent: "flex-start",
+              borderColor: "rgba(90,143,160,0.4)", color: "#5a8fa0",
+              bgcolor: "rgba(90,143,160,0.05)",
+              "&:hover": { borderColor: "#5a8fa0", bgcolor: "rgba(90,143,160,0.12)" },
+              display: "flex", alignItems: "center", gap: 1,
+            }}>
+              <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#5a8fa0", flexShrink: 0 }}/>
+              <Box sx={{ textAlign: "left" }}>
+                <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: "#5a8fa0", lineHeight: 1.2 }}>
+                  Uşak
+                </Typography>
+                <Typography sx={{ fontSize: "0.57rem", color: "text.secondary", lineHeight: 1.2 }}>
+                  A — καθοδικό σέιρ
+                </Typography>
+              </Box>
+            </Button>
+
+            {/* Oud Scale */}
+            <Button variant="outlined" fullWidth onClick={handleLoadOudScale} sx={{
+              fontSize: "0.7rem", py: 0.65, justifyContent: "flex-start",
+              borderColor: "rgba(201,169,110,0.35)", color: "primary.main",
+              bgcolor: "rgba(201,169,110,0.04)",
+              "&:hover": { borderColor: "primary.main", bgcolor: "rgba(201,169,110,0.1)" },
+              display: "flex", alignItems: "center", gap: 1,
+            }}>
+              <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "primary.main", flexShrink: 0 }}/>
+              <Box sx={{ textAlign: "left" }}>
+                <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, color: "primary.light", lineHeight: 1.2 }}>
+                  Κλίμακα Ούτι
+                </Typography>
+                <Typography sx={{ fontSize: "0.57rem", color: "text.secondary", lineHeight: 1.2 }}>
+                  Ανοιχτές + χρωματική
+                </Typography>
+              </Box>
+            </Button>
+          </Box>
 
           {detectedMaqam && (
             <Box

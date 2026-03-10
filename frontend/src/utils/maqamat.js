@@ -251,8 +251,29 @@ export const MAQAMAT = {
       dominantRegion: [500, 900],
     },
     jins: [{ name: "Ushshaq", root: 0 }, { name: "Rast", root: 700 }],
-    relatedMaqamat: ["bayati", "husseini"],
+    relatedMaqamat: ["bayati", "husseini", "usaq"],
     description: "Very close to Bayati. Upper tetrachord raises the 6th to a major 6th. Used extensively in Ottoman and Arabic classical music.",
+  },
+
+  usaq: {
+    name: "Uşak",
+    tier: 1,
+    family: "Bayati",
+    tradition: ["Turkish", "Arab", "Greek"],
+    intervals: [0, 150, 300, 500, 700, 800, 1000, 1200],
+    characteristic: [150, 800],
+    dominant: 700,
+    leading: 1000,
+    seyir: {
+      type: "descending",
+      start: "upper",
+      peak: "middle",
+      gestures: ["descend_from_5th", "emphasize_neutral_2nd", "rest_on_tonic", "upper_excursion"],
+      dominantRegion: [500, 800],
+    },
+    jins: [{ name: "Ushshaq", root: 0 }, { name: "Nahawand", root: 700 }],
+    relatedMaqamat: ["bayati", "ushshaq", "husseini"],
+    description: "Core Turkish makam. Neutral 2nd (150¢) with a minor 6th (800¢) gives a melancholic, introspective character. Widely used in Turkish classical, folk, and religious music (ilahi). One of the most expressive makamlar.",
   },
 
   nawa_athar: {

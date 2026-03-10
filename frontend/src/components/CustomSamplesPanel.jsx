@@ -79,7 +79,7 @@ const SECTION_LABEL_SX = {
   display:"block", mb:1.25,
 };
 
-export default function CustomSamplesPanel({ audioMode, onModeChange }) {
+export default function CustomSamplesPanel({ audioMode, onModeChange, onCountChange }) {
   const [samplesInfo,  setSamplesInfo]  = useState(() => getCustomSamplesInfo());
   const [folderName,   setFolderName]   = useState(null);
   const [savedName,    setSavedName]    = useState(null);
@@ -105,6 +105,7 @@ export default function CustomSamplesPanel({ audioMode, onModeChange }) {
       const info = getCustomSamplesInfo();
       setLoadResult({ loaded: res.loaded, failed: res.failed });
       setSamplesInfo(info);
+      onCountChange?.(info.count);
       if (info.ready) onModeChange?.("custom");
     } catch (e) {
       setLoadResult({ loaded:0, failed:[String(e)] });
@@ -154,6 +155,7 @@ export default function CustomSamplesPanel({ audioMode, onModeChange }) {
     clearCustomSamples(); await clearSavedFolder();
     setFolderName(null); setSavedName(null);
     setSamplesInfo(getCustomSamplesInfo()); setLoadResult(null);
+    onCountChange?.(0);
     onModeChange?.("karplus");
   }, [onModeChange]);
 

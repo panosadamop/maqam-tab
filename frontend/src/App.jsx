@@ -14,7 +14,7 @@ import WaveformViewer from "./components/WaveformViewer";
 import AITranscribePanel from "./components/AITranscribePanel";
 import SampleBanner from "./components/SampleBanner";
 import { INSTRUMENTS, expandSazTuning } from "./utils/instruments";
-import { loadSoundfont } from "./utils/audioEngine";
+import { loadSoundfont, getCustomSamplesInfo } from "./utils/audioEngine";
 import CustomSamplesPanel from "./components/CustomSamplesPanel";
 import { MAQAMAT } from "./utils/maqamat";
 import { generateRastSample, generateUsaqSample, generateOudScaleSample } from "./utils/sampleRast";
@@ -42,6 +42,7 @@ export default function App() {
   const [sazStrings, setSazStrings] = useState("3");          // "3" | "7"
   const [sfLoading,  setSfLoading]  = useState(false);
   const [sfReady,    setSfReady]    = useState(false);
+  const [customCount, setCustomCount] = useState(() => getCustomSamplesInfo().count);
 
   // Compute effective tuning (expanded for saz 7-string mode)
   const effectiveTuning = (instrument === "saz" && sazStrings === "7")
@@ -384,43 +385,58 @@ export default function App() {
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 1 }}>
               {[
-                { val: "karplus",   label: "Χορδή",   desc: "Karplus-Strong — πλήκτρο", icon: "🎸" },
-                { val: "soundfont", label: "Samples",  desc: "Πραγματικές ηχογραφήσεις",  icon: "🎵" },
-                { val: "synth",     label: "Synth",    desc: "Απλός ταλαντωτής",          icon: "🎛" },
-              ].map(({ val, label, desc, icon }) => (
+                { val: "custom",    label: "Custom",   desc: customCount > 0 ? `${customCount} νότες φορτωμένες` : "Δεν έχεις φορτώσει ακόμα →", icon: "🎙" },
+                { val: "karplus",   label: "Χορδή",    desc: "Karplus-Strong — πλήκτρο", icon: "🎸" },
+                { val: "soundfont", label: "CDN",       desc: "Πραγματικές ηχογραφήσεις",  icon: "🎵" },
+                { val: "synth",     label: "Synth",     desc: "Απλός ταλαντωτής",          icon: "🎛" },
+              ].map(({ val, label, desc, icon }) => {
+                const isCustom   = val === "custom";
+                const isDisabled = isCustom && customCount === 0;
+                return (
                 <Box
                   key={val}
-                  onClick={() => handleAudioModeChange(val)}
+                  onClick={() => !isDisabled && handleAudioModeChange(val)}
                   sx={{
-                    py: 0.6, px: 1,
+                    py: 0.55, px: 0.85,
                     borderRadius: 0.75, border: "1px solid",
-                    cursor: "pointer",
+                    cursor: isDisabled ? "default" : "pointer",
+                    opacity: isDisabled ? 0.45 : val === "soundfont" && sfLoading ? 0.6 : 1,
                     borderColor: audioMode === val ? "primary.main" : "divider",
                     bgcolor: audioMode === val ? "rgba(201,169,110,0.1)" : "transparent",
                     transition: "all 0.13s",
-                    "&:hover": { borderColor: "rgba(201,169,110,0.5)" },
-                    opacity: val === "soundfont" && sfLoading ? 0.6 : 1,
-                    display: "flex", alignItems: "center", gap: 1,
+                    "&:hover": isDisabled ? {} : { borderColor: "rgba(201,169,110,0.5)" },
+                    display: "flex", alignItems: "center", gap: 0.75,
                   }}
                 >
-                  <Typography sx={{ fontSize: "0.75rem" }}>{icon}</Typography>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{
-                      fontSize: "0.7rem", fontWeight: audioMode === val ? 600 : 400,
-                      color: audioMode === val ? "primary.light" : "text.primary",
-                      lineHeight: 1.2,
-                    }}>
-                      {sfLoading && val === "soundfont" ? "Φορτώνει..." : label}
-                    </Typography>
-                    <Typography sx={{ fontSize: "0.58rem", color: "text.secondary", lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: "0.72rem", lineHeight: 1 }}>{icon}</Typography>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Typography sx={{
+                        fontSize: "0.68rem", fontWeight: audioMode === val ? 600 : 400,
+                        color: audioMode === val ? "primary.light" : "text.primary",
+                        lineHeight: 1.2, whiteSpace: "nowrap",
+                      }}>
+                        {sfLoading && val === "soundfont" ? "Φορτώνει..." : label}
+                      </Typography>
+                      {isCustom && customCount > 0 && (
+                        <Box sx={{ px: 0.5, py: 0.05, borderRadius: 0.4,
+                          bgcolor: "rgba(106,176,76,0.15)", border: "1px solid rgba(106,176,76,0.3)" }}>
+                          <Typography sx={{ fontSize: "0.52rem", color: "#6ab04c", fontFamily: "Ubuntu Mono, monospace" }}>
+                            ×{customCount}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    <Typography sx={{ fontSize: "0.56rem", color: isCustom && customCount === 0 ? "primary.dark" : "text.secondary", lineHeight: 1.2 }}>
                       {desc}
                     </Typography>
                   </Box>
                   {audioMode === val && (
-                    <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "primary.main" }}/>
+                    <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "primary.main", flexShrink: 0 }}/>
                   )}
                 </Box>
-              ))}
+                );
+              })}
             </Box>
 
 
@@ -579,6 +595,7 @@ export default function App() {
               <CustomSamplesPanel
                 audioMode={audioMode}
                 onModeChange={(mode) => setAudioMode(mode)}
+                onCountChange={(n) => setCustomCount(n)}
               />
             </Box>
           )}

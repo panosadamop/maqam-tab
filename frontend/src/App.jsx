@@ -15,6 +15,7 @@ import AITranscribePanel from "./components/AITranscribePanel";
 import SampleBanner from "./components/SampleBanner";
 import { INSTRUMENTS, expandSazTuning } from "./utils/instruments";
 import { loadSoundfont } from "./utils/audioEngine";
+import CustomSamplesPanel from "./components/CustomSamplesPanel";
 import { MAQAMAT } from "./utils/maqamat";
 import { generateRastSample, generateUsaqSample, generateOudScaleSample } from "./utils/sampleRast";
 
@@ -37,8 +38,8 @@ export default function App() {
   const audioEngineRef = useRef(null);
 
   // ── Settings ───────────────────────────────────────────────────────────────
-  const [audioMode,  setAudioMode]  = useState("synth");  // "synth" | "soundfont"
-  const [sazStrings, setSazStrings] = useState("3");       // "3" | "7"
+  const [audioMode,  setAudioMode]  = useState("karplus");  // "synth" | "karplus" | "soundfont"
+  const [sazStrings, setSazStrings] = useState("3");          // "3" | "7"
   const [sfLoading,  setSfLoading]  = useState(false);
   const [sfReady,    setSfReady]    = useState(false);
 
@@ -54,12 +55,12 @@ export default function App() {
       const ok = await loadSoundfont(instrument);
       setSfReady(ok);
       setSfLoading(false);
-      if (!ok) setAudioMode("synth"); // fallback
+      if (!ok) setAudioMode("karplus"); // fallback to Karplus if CDN unavailable
     }
   };
 
-  const TAB_KEYS = ["record", "ai", "edit", "maqam", "export"];
-  const TAB_LABELS = ["🎙 Ηχογράφηση", "🤖 AI Μεταγραφή", "✏️ Επεξεργασία", "🎵 Μακάμ", "📄 Εξαγωγή"];
+  const TAB_KEYS = ["record", "ai", "edit", "maqam", "export", "samples"];
+  const TAB_LABELS = ["🎙 Ηχογράφηση", "🤖 AI Μεταγραφή", "✏️ Επεξεργασία", "🎵 Μακάμ", "📄 Εξαγωγή", "🎸 Samples"];
 
   const handleInstrumentChange = (inst) => {
     setInstrument(inst);
@@ -381,40 +382,56 @@ export default function App() {
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.5 }}>
               Ήχος οργάνου
             </Typography>
-            <Box sx={{ display: "flex", gap: 0.5, mb: 1.5 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 1 }}>
               {[
-                { val: "synth",     label: "Synth",    icon: "🎛" },
-                { val: "soundfont", label: "Samples",  icon: "🎵" },
-              ].map(({ val, label, icon }) => (
+                { val: "karplus",   label: "Χορδή",   desc: "Karplus-Strong — πλήκτρο", icon: "🎸" },
+                { val: "soundfont", label: "Samples",  desc: "Πραγματικές ηχογραφήσεις",  icon: "🎵" },
+                { val: "synth",     label: "Synth",    desc: "Απλός ταλαντωτής",          icon: "🎛" },
+              ].map(({ val, label, desc, icon }) => (
                 <Box
                   key={val}
                   onClick={() => handleAudioModeChange(val)}
                   sx={{
-                    flex: 1, py: 0.5, px: 0.75,
-                    borderRadius: 1, border: "1px solid",
-                    cursor: "pointer", textAlign: "center",
+                    py: 0.6, px: 1,
+                    borderRadius: 0.75, border: "1px solid",
+                    cursor: "pointer",
                     borderColor: audioMode === val ? "primary.main" : "divider",
-                    bgcolor: audioMode === val ? "rgba(201,169,110,0.12)" : "background.default",
-                    color: audioMode === val ? "primary.light" : "text.secondary",
-                    fontSize: "0.68rem",
-                    fontFamily: "'Ubuntu Mono', monospace",
-                    transition: "all 0.15s",
-                    "&:hover": { borderColor: "primary.dark" },
+                    bgcolor: audioMode === val ? "rgba(201,169,110,0.1)" : "transparent",
+                    transition: "all 0.13s",
+                    "&:hover": { borderColor: "rgba(201,169,110,0.5)" },
                     opacity: val === "soundfont" && sfLoading ? 0.6 : 1,
+                    display: "flex", alignItems: "center", gap: 1,
                   }}
                 >
-                  {icon} {sfLoading && val === "soundfont" ? "..." : label}
+                  <Typography sx={{ fontSize: "0.75rem" }}>{icon}</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{
+                      fontSize: "0.7rem", fontWeight: audioMode === val ? 600 : 400,
+                      color: audioMode === val ? "primary.light" : "text.primary",
+                      lineHeight: 1.2,
+                    }}>
+                      {sfLoading && val === "soundfont" ? "Φορτώνει..." : label}
+                    </Typography>
+                    <Typography sx={{ fontSize: "0.58rem", color: "text.secondary", lineHeight: 1.2 }}>
+                      {desc}
+                    </Typography>
+                  </Box>
+                  {audioMode === val && (
+                    <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "primary.main" }}/>
+                  )}
                 </Box>
               ))}
             </Box>
+
+
             {audioMode === "soundfont" && sfReady && (
-              <Typography variant="caption" sx={{ color: "success.main", fontSize: "0.62rem", display: "block", mb: 1 }}>
+              <Typography variant="caption" sx={{ color: "success.main", fontSize: "0.6rem", display: "block", mb: 1 }}>
                 ✓ Samples φορτώθηκαν
               </Typography>
             )}
             {audioMode === "soundfont" && !sfReady && !sfLoading && (
-              <Typography variant="caption" sx={{ color: "warning.main", fontSize: "0.62rem", display: "block", mb: 1 }}>
-                ⚠ Χρειάζεται σύνδεση internet
+              <Typography variant="caption" sx={{ color: "warning.main", fontSize: "0.6rem", display: "block", mb: 1 }}>
+                ⚠ Χρειάζεται internet για samples
               </Typography>
             )}
 
@@ -553,6 +570,15 @@ export default function App() {
                 instrument={instrument}
                 detectedMaqam={detectedMaqam}
                 tempo={tempo}
+              />
+            </Box>
+          )}
+
+          {activeTab === 5 && (
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "auto" }}>
+              <CustomSamplesPanel
+                audioMode={audioMode}
+                onModeChange={(mode) => setAudioMode(mode)}
               />
             </Box>
           )}
